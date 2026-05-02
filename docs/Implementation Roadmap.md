@@ -9,10 +9,10 @@
 
 ### Phase 1: The Domain & DTOs (The "TypeScript Interfaces")
 *Build the shared language between Server and Client. No logic yet.*
-- [ ] **Enums & Reflection:** Create the `Track` and `Island` enums. Create the `@GameRule` annotation and apply it to the Islands.
-- [ ] **Reflection Utility:** Write a quick `ReflectionHelper.java` that reads the `@GameRule` annotations and prints them to the console (Boom, **Ishod 2** half-done).
-- [ ] **DTO Records:** Create `WelcomeDTO`, `WorkerDTO`, `PlayerStateDTO`, `GameStateDTO`, `MoveRequestDTO`, and `ErrorDTO`.
-- [ ] **Serialization Check:** Ensure *every* DTO implements `Serializable` and has a `private static final long serialVersionUID = 1L;`.
+- [x] **Enums & Reflection:** Create the `Track` and `Island` enums. Create the `@GameRule` annotation and apply it to the Islands.
+- [x] **Reflection Utility:** Write a quick `ReflectionHelper.java` that reads the `@GameRule` annotations and prints them to the console (Boom, **Ishod 2** half-done).
+- [x] **DTO Records:** Create `WelcomeDTO`, `WorkerDTO`, `PlayerStateDTO`, `GameStateDTO`, `MoveRequestDTO`, and `ErrorDTO`.
+- [x] **Serialization Check:** Ensure *every* DTO implements `Serializable` and has a `private static final long serialVersionUID = 1L;`.
 
 ### Phase 2: The Server Skeleton (The "Node.js Backend")
 *Build the server without any UI. Test it using console logs.*
