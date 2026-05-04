@@ -16,10 +16,10 @@
 
 ### Phase 2: The Server Skeleton (The "Node.js Backend")
 *Build the server without any UI. Test it using console logs.*
-- [ ] **Game Engine Logic:** Create `GameEngine.java`. Implement the `synchronized processMove()` method. Write a simple `System.out.println` test to ensure a Level 1 worker can go to Isabela, but not San Cristobal.
-- [ ] **TCP Server:** Create `TcpServer.java` with a `ServerSocket` listening on port 8080.
-- [ ] **Client Handler:** Create the `ClientHandler.java` Virtual Thread. Implement the `switch` statement with Java 25 Pattern Matching to handle incoming DTOs.
-- [ ] **The Handshake:** Make the server assign Player 1 and Player 2 upon connection, and broadcast the initial `GameStateDTO`.
+- [x] **Game Engine Logic:** Create `GameEngine.java`. Implement the `synchronized processMove()` method. Write a simple `System.out.println` test to ensure a Level 1 worker can go to Isabela, but not San Cristobal.
+- [x] **TCP Server:** Create `TcpServer.java` with a `ServerSocket` listening on port 8080.
+- [x] **Client Handler:** Create the `ClientHandler.java` Virtual Thread. Implement the `switch` statement with Java 25 Pattern Matching to handle incoming DTOs.
+- [x] **The Handshake:** Make the server assign Player 1 and Player 2 upon connection, and broadcast the initial `GameStateDTO`.
 
 ### Phase 3: The JavaFX Skeleton (The "HTML/DOM")
 *Build the UI visually. Do not connect it to the network yet.*
