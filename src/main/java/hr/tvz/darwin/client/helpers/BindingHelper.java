@@ -37,6 +37,7 @@ public class BindingHelper {
     private final Circle p2Worker0;
     private final Circle p2Worker1;
 
+    // TODO: Should these location based things be extracted somehow? Or unified? Made dynamic? Or is it not worth it?
     // Island button center positions (X, Y) within the AnchorPane
     // These match the layoutX/layoutY in Game.fxml + button half-width (~30px)
     private final Map<Island, double[]> islandPositions = new HashMap<>();

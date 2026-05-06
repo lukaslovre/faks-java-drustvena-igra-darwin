@@ -40,10 +40,10 @@ public class AnimationHelper {
      * dx = islandX - worker.getLayoutX()
      * dy = islandY - worker.getLayoutY()
      *
-     * @param worker  The Circle node to animate
-     * @param toX     Absolute X destination within the parent pane
-     * @param toY     Absolute Y destination within the parent pane
-     * @param onDone  Runnable to execute AFTER the animation finishes (or null)
+     * @param worker The Circle node to animate
+     * @param toX    Absolute X destination within the parent pane
+     * @param toY    Absolute Y destination within the parent pane
+     * @param onDone Runnable to execute AFTER the animation finishes (or null)
      */
     public void animateTokenToIsland(Circle worker, double toX, double toY, Runnable onDone) {
         // Calculate the offset needed to reach the target
@@ -97,8 +97,8 @@ public class AnimationHelper {
      * In Phase 5, this will be combined with a timeline animation.
      * For now, it's an instant color swap.
      *
-     * @param worker    The Circle to re-color
-     * @param newLevel  The worker's level AFTER leveling up (2 or 3)
+     * @param worker   The Circle to re-color
+     * @param newLevel The worker's level AFTER leveling up (2 or 3)
      */
     public void animateLevelUp(Circle worker, int newLevel) {
         Color baseColor = (Color) worker.getFill();
