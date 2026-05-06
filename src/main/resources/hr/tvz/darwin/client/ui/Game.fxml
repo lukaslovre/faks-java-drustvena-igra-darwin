@@ -18,35 +18,45 @@
     <left>
         <VBox prefHeight="200.0" prefWidth="200.0" BorderPane.alignment="CENTER">
             <children>
-                <ProgressBar id="botanyProgress" prefWidth="200.0" progress="0.0"/>
-                <ProgressBar id="zoologyProgress" layoutX="10.0" layoutY="10.0" prefWidth="200.0" progress="0.0"/>
-                <ProgressBar id="geologyProgress" layoutX="10.0" layoutY="30.0" prefWidth="200.0" progress="0.0"/>
+                <ProgressBar fx:id="botanyProgress" id="botanyProgress" prefWidth="200.0" progress="0.0"/>
+                <ProgressBar fx:id="zoologyProgress" id="zoologyProgress" layoutX="10.0" layoutY="10.0"
+                             prefWidth="200.0" progress="0.0"/>
+                <ProgressBar fx:id="geologyProgress" id="geologyProgress" layoutX="10.0" layoutY="30.0"
+                             prefWidth="200.0" progress="0.0"/>
             </children>
         </VBox>
     </left>
     <right>
         <VBox prefHeight="200.0" prefWidth="200.0" BorderPane.alignment="CENTER">
             <children>
-                <TextArea id="chatHistoryArea" prefHeight="200.0" prefWidth="200.0"/>
-                <TextField id="chatInputField"/>
-                <Button id="sendChatBtn" mnemonicParsing="false" onAction="#onSendMessage" text="Send"/>
+                <TextArea fx:id="chatHistoryArea" id="chatHistoryArea" prefHeight="200.0" prefWidth="200.0"/>
+                <TextField fx:id="chatInputField" id="chatInputField"/>
+                <Button fx:id="sendChatBtn" id="sendChatBtn" mnemonicParsing="false" onAction="#onSendMessage"
+                        text="Send"/>
             </children>
         </VBox>
     </right>
     <center>
         <AnchorPane prefHeight="200.0" prefWidth="200.0" BorderPane.alignment="CENTER">
             <children>
-                <Button id="islandIsabela" layoutX="150.0" layoutY="72.0" mnemonicParsing="false" onAction="#onIslandClick" text="Isabela"/>
-                <Button id="islandSantaCruz" layoutX="138.0" layoutY="104.0" mnemonicParsing="false" onAction="#onIslandClick" text="Santa Cruz"/>
-                <Button id="islandSanCristobal" layoutX="130.0" layoutY="136.0" mnemonicParsing="false"
+                <Button fx:id="islandIsabela" id="islandIsabela" layoutX="150.0" layoutY="72.0" mnemonicParsing="false"
+                        onAction="#onIslandClick" text="Isabela"/>
+                <Button fx:id="islandSantaCruz" id="islandSantaCruz" layoutX="138.0" layoutY="104.0"
+                        mnemonicParsing="false" onAction="#onIslandClick" text="Santa Cruz"/>
+                <Button fx:id="islandSanCristobal" id="islandSanCristobal" layoutX="130.0" layoutY="136.0"
+                        mnemonicParsing="false"
                         onAction="#onIslandClick" text="San Cristobal"/>
-                <Circle id="p1Worker0" fill="DODGERBLUE" layoutX="29.0" layoutY="344.0" radius="29.0" stroke="BLACK"
+                <Circle fx:id="p1Worker0" id="p1Worker0" fill="DODGERBLUE" layoutX="29.0" layoutY="344.0" radius="29.0"
+                        stroke="BLACK"
                         strokeType="INSIDE"/>
-                <Circle id="p1Worker1" fill="DODGERBLUE" layoutX="87.0" layoutY="344.0" radius="29.0" stroke="BLACK"
+                <Circle fx:id="p1Worker1" id="p1Worker1" fill="DODGERBLUE" layoutX="87.0" layoutY="344.0" radius="29.0"
+                        stroke="BLACK"
                         strokeType="INSIDE"/>
-                <Circle id="p2Worker0" fill="#ff3d1f" layoutX="313.0" layoutY="344.0" radius="29.0" stroke="BLACK"
+                <Circle fx:id="p2Worker0" id="p2Worker0" fill="#ff3d1f" layoutX="313.0" layoutY="344.0" radius="29.0"
+                        stroke="BLACK"
                         strokeType="INSIDE"/>
-                <Circle id="p2Worker1" fill="#ff3d1f" layoutX="371.0" layoutY="344.0" radius="29.0" stroke="BLACK"
+                <Circle fx:id="p2Worker1" id="p2Worker1" fill="#ff3d1f" layoutX="371.0" layoutY="344.0" radius="29.0"
+                        stroke="BLACK"
                         strokeType="INSIDE"/>
             </children>
         </AnchorPane>
