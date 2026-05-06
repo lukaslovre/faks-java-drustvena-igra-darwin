@@ -23,9 +23,9 @@
 
 ### Phase 3: The JavaFX Skeleton (The "HTML/DOM")
 *Build the UI visually. Do not connect it to the network yet.*
-- [ ] **Scene Builder:** Open `Game.fxml` in Scene Builder. Drag and drop the UI: 3 Island buttons, 3 Research Track progress bars, and a Chat text area.
-- [ ] **Controller Mapping:** Create `GameController.java` and link the `@FXML` tags.
-- [ ] **Helpers:** Create `BindingHelper.java` and `AnimationHelper.java`. Write dummy methods to test updating a progress bar or moving a token.
+- [x] **Scene Builder:** Open `Game.fxml` in Scene Builder. Drag and drop the UI: 3 Island buttons, 3 Research Track progress bars, and a Chat text area.
+- [x] **Controller Mapping:** Create `GameController.java` and link the `@FXML` tags.
+- [x] **Helpers:** Create `BindingHelper.java` and `AnimationHelper.java`. Write dummy methods to test updating a progress bar or moving a token.
 
 ### Phase 4: Connecting the Pipes (The "Fetch API")
 *Connect Phase 2 and Phase 3.*
