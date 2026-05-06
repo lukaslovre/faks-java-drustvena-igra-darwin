@@ -32,7 +32,7 @@ The developer is highly experienced in JavaScript/TypeScript but a beginner in J
 
 ```bash
 mvn compile javafx:run -Dexec.mainClass=hr.tvz.darwin.server.ServerApp  # server
-mvn compile javafx:run -Dexec.mainClass=hr.tvz.darwin.client.ClientApp  # client x2
+mvn compile javafx:run                                      # client x2 (configured in pom.xml)
 ```
 
 ## Progressive Context (Pre-implementation Docs)

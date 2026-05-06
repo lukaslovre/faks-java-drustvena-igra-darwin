@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Menu?>
+<?import javafx.scene.control.MenuBar?>
+<?import javafx.scene.control.MenuItem?>
+<?import javafx.scene.control.ProgressBar?>
+<?import javafx.scene.control.TextArea?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.shape.Circle?>
+
+<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0"
+            prefWidth="600.0" stylesheets="@style.css" xmlns="http://javafx.com/javafx/25.0.1"
+            xmlns:fx="http://javafx.com/fxml/1" fx:controller="hr.tvz.darwin.client.ui.GameController">
+    <left>
+        <VBox prefHeight="200.0" prefWidth="200.0" BorderPane.alignment="CENTER">
+            <children>
+                <ProgressBar id="botanyProgress" prefWidth="200.0" progress="0.0"/>
+                <ProgressBar id="zoologyProgress" layoutX="10.0" layoutY="10.0" prefWidth="200.0" progress="0.0"/>
+                <ProgressBar id="geologyProgress" layoutX="10.0" layoutY="30.0" prefWidth="200.0" progress="0.0"/>
+            </children>
+        </VBox>
+    </left>
+    <right>
+        <VBox prefHeight="200.0" prefWidth="200.0" BorderPane.alignment="CENTER">
+            <children>
+                <TextArea id="chatHistoryArea" prefHeight="200.0" prefWidth="200.0"/>
+                <TextField id="chatInputField"/>
+                <Button id="sendChatBtn" mnemonicParsing="false" onAction="#onSendMessage" text="Send"/>
+            </children>
+        </VBox>
+    </right>
+    <center>
+        <AnchorPane prefHeight="200.0" prefWidth="200.0" BorderPane.alignment="CENTER">
+            <children>
+                <Button id="islandIsabela" layoutX="150.0" layoutY="72.0" mnemonicParsing="false" onAction="#onIslandClick" text="Isabela"/>
+                <Button id="islandSantaCruz" layoutX="138.0" layoutY="104.0" mnemonicParsing="false" onAction="#onIslandClick" text="Santa Cruz"/>
+                <Button id="islandSanCristobal" layoutX="130.0" layoutY="136.0" mnemonicParsing="false"
+                        onAction="#onIslandClick" text="San Cristobal"/>
+                <Circle id="p1Worker0" fill="DODGERBLUE" layoutX="29.0" layoutY="344.0" radius="29.0" stroke="BLACK"
+                        strokeType="INSIDE"/>
+                <Circle id="p1Worker1" fill="DODGERBLUE" layoutX="87.0" layoutY="344.0" radius="29.0" stroke="BLACK"
+                        strokeType="INSIDE"/>
+                <Circle id="p2Worker0" fill="#ff3d1f" layoutX="313.0" layoutY="344.0" radius="29.0" stroke="BLACK"
+                        strokeType="INSIDE"/>
+                <Circle id="p2Worker1" fill="#ff3d1f" layoutX="371.0" layoutY="344.0" radius="29.0" stroke="BLACK"
+                        strokeType="INSIDE"/>
+            </children>
+        </AnchorPane>
+    </center>
+    <top>
+        <MenuBar BorderPane.alignment="CENTER">
+            <menus>
+                <Menu mnemonicParsing="false" text="Game">
+                    <items>
+                        <MenuItem mnemonicParsing="false" text="Help"/>
+                    </items>
+                </Menu>
+                <Menu mnemonicParsing="false" text="RMI/Global">
+                    <items>
+                        <MenuItem mnemonicParsing="false" text="Close"/>
+                    </items>
+                </Menu>
+                <Menu mnemonicParsing="false" text="Replay">
+                    <items>
+                        <MenuItem mnemonicParsing="false" text="Delete"/>
+                    </items>
+                </Menu>
+            </menus>
+        </MenuBar>
+    </top>
+</BorderPane>
