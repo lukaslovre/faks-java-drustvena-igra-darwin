@@ -2,8 +2,10 @@ package hr.tvz.darwin.client.ui;
 
 import hr.tvz.darwin.client.helpers.AnimationHelper;
 import hr.tvz.darwin.client.helpers.BindingHelper;
+import hr.tvz.darwin.client.network.TcpClient;
 import hr.tvz.darwin.shared.Island;
-import hr.tvz.darwin.shared.dto.PlayerStateDTO;
+import hr.tvz.darwin.shared.dto.*;
+import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -18,6 +20,8 @@ import java.util.Map;
 import java.util.ResourceBundle;
 
 public class GameController implements Initializable {
+
+    private enum ClientState { DISCONNECTED, WAITING, PLAYING, GAME_OVER }
 
     @FXML
     private ProgressBar botanyProgress;
@@ -60,13 +64,49 @@ public class GameController implements Initializable {
 
     private BindingHelper bindingHelper;
     private AnimationHelper animationHelper;
+    private TcpClient tcpClient;
+    private int myPlayerId = -1;
+    private ClientState clientState = ClientState.DISCONNECTED;
 
-    // Maps JavaFX id to Island enum
     private static final Map<String, Island> BUTTON_TO_ISLAND = Map.of(
             "islandIsabela", Island.ISABELA,
             "islandSantaCruz", Island.SANTA_CRUZ,
             "islandSanCristobal", Island.SAN_CRISTOBAL
     );
+
+    public void setTcpClient(TcpClient client) {
+        this.tcpClient = client;
+    }
+
+    public void handleDTO(Object dto) {
+        Platform.runLater(() -> {
+            switch (dto) {
+                case WelcomeDTO w -> {
+                    myPlayerId = w.playerId();
+                    clientState = ClientState.WAITING;
+                    disableIslandButtons();
+                    chatHistoryArea.appendText("Connected as Player " + myPlayerId + ". Waiting for opponent...\n");
+                }
+                case GameStateDTO s -> {
+                    clientState = ClientState.PLAYING;
+                    bindingHelper.updateUI(s);
+                    boolean myTurn = s.activePlayerId() == myPlayerId;
+                    setButtonsEnabled(myTurn);
+                }
+                case ErrorDTO e -> {
+                    if (e.errorMessage().contains("Opponent disconnected")) {
+                        clientState = ClientState.GAME_OVER;
+                        disableIslandButtons();
+                    }
+                    chatHistoryArea.appendText("[SERVER] " + e.errorMessage() + "\n");
+                }
+                case ChatMessageDTO c -> {
+                    chatHistoryArea.appendText("Player " + c.playerId() + ": " + c.message() + "\n");
+                }
+                default -> chatHistoryArea.appendText("[UNKNOWN] " + dto.getClass().getSimpleName() + "\n");
+            }
+        });
+    }
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
@@ -75,37 +115,39 @@ public class GameController implements Initializable {
                 p1Worker0, p1Worker1, p2Worker0, p2Worker1
         );
         animationHelper = new AnimationHelper();
-
-        // Dummy test: set progress bars to show BindingHelper works
-        bindingHelper.updateProgressBars(new PlayerStateDTO(2, 1, 0, null, null));
-
-        chatHistoryArea.appendText("Game board ready. BindingHelper & AnimationHelper loaded.\n");
+        disableIslandButtons();
+        chatHistoryArea.appendText("Darwin's Journey — connecting to server...\n");
     }
 
     @FXML
     private void onIslandClick(ActionEvent event) {
+        if (clientState != ClientState.PLAYING || tcpClient == null) return;
         Button source = (Button) event.getSource();
-        chatHistoryArea.appendText("Clicked: " + source.getId() + "\n");
-
         Island target = BUTTON_TO_ISLAND.get(source.getId());
-        if (target == null) {
-            chatHistoryArea.appendText("Unknown island: " + source.getId() + "\n");
-            return;
-        }
+        if (target == null) return;
 
-        double[] islandPos = bindingHelper.getIslandPosition(target);
-        if (islandPos != null) {
-            animationHelper.animateTokenToIsland(p1Worker0, islandPos[0], islandPos[1],
-                    () -> animationHelper.animateTokenBack(p1Worker0, null));
-            chatHistoryArea.appendText("Animating worker to " + target.name() + "\n");
-        }
+        tcpClient.send(new MoveRequestDTO(myPlayerId, 0, target));
+        chatHistoryArea.appendText("Sent move: Worker 0 -> " + target.name() + "\n");
     }
 
     @FXML
     private void onSendMessage(ActionEvent event) {
+        if (tcpClient == null) return;
         String message = chatInputField.getText();
         if (message == null || message.isBlank()) return;
-        chatHistoryArea.appendText("You: " + message + "\n");
+        tcpClient.send(new ChatMessageDTO(myPlayerId, message));
         chatInputField.clear();
+    }
+
+    private void disableIslandButtons() {
+        islandIsabela.setDisable(true);
+        islandSantaCruz.setDisable(true);
+        islandSanCristobal.setDisable(true);
+    }
+
+    private void setButtonsEnabled(boolean enabled) {
+        islandIsabela.setDisable(!enabled);
+        islandSantaCruz.setDisable(!enabled);
+        islandSanCristobal.setDisable(!enabled);
     }
 }

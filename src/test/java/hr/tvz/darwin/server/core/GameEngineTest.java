@@ -69,24 +69,24 @@ class GameEngineTest {
     @Test
     void gameStartsWithPlayer1Turn() {
         assertEquals(1, engine.getActivePlayerId());
+        assertEquals(1, engine.getCurrentState().activePlayerId());
     }
 
     @Test
     void afterPlayer1Moves_itsPlayer2Turn() {
-        MoveRequestDTO move = new MoveRequestDTO(1, 0, Island.ISABELA);
-        engine.processMove(move, player1Handler);
+        engine.processMove(new MoveRequestDTO(1, 0, Island.ISABELA), player1Handler);
 
         assertEquals(2, engine.getActivePlayerId());
+        assertEquals(2, engine.getCurrentState().activePlayerId());
     }
 
     @Test
     void afterPlayer2Moves_itsPlayer1TurnAgain() {
-        // Player 1 moves
         engine.processMove(new MoveRequestDTO(1, 0, Island.ISABELA), player1Handler);
-        // Player 2 moves
         engine.processMove(new MoveRequestDTO(2, 0, Island.ISABELA), player2Handler);
 
         assertEquals(1, engine.getActivePlayerId());
+        assertEquals(1, engine.getCurrentState().activePlayerId());
     }
 
     // === Turn Validation Tests ===
@@ -225,6 +225,8 @@ class GameEngineTest {
 
         assertEquals(1, engine.getCurrentState().winnerId(),
                 "Player 1 should win by reaching 5 Botany");
+        assertEquals(1, engine.getCurrentState().activePlayerId(),
+                "Active player should be 1 after P2's last move (it's P1's turn)");
     }
 
     @Test

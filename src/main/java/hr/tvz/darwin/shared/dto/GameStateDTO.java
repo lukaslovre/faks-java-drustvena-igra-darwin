@@ -44,6 +44,7 @@ import java.io.Serializable;
 public record GameStateDTO(
         PlayerStateDTO player1,
         PlayerStateDTO player2,
+        int activePlayerId,
         int winnerId
 ) implements Serializable {
     @Serial

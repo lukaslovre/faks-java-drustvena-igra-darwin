@@ -63,7 +63,8 @@ public class GameEngine {
                 new PlayerStateDTO(0, 0, 0,
                         new WorkerDTO(0, 1, null),
                         new WorkerDTO(1, 1, null)),
-                0  // 0 = no winner yet
+                1,
+                0
         );
     }
 
@@ -147,25 +148,25 @@ public class GameEngine {
      * 4. Player's track for that island's reward increases by 1
      */
     private GameStateDTO generateNewState(GameStateDTO oldState, MoveRequestDTO move) {
-        // Determine which player state to update (player1 or player2)
         boolean isPlayer1 = move.playerId() == 1;
         PlayerStateDTO oldPlayer = isPlayer1 ? oldState.player1() : oldState.player2();
         PlayerStateDTO newPlayer = applyWorkerAction(oldPlayer, move);
 
-        // Create the new state with the updated player
-        GameStateDTO newState = isPlayer1
-                ? new GameStateDTO(newPlayer, oldState.player2(), 0)
-                : new GameStateDTO(oldState.player1(), newPlayer, 0);
+        int nextPlayer = (move.playerId() == 1) ? 2 : 1;
+        int winnerId = checkWinner(newState(move, isPlayer1, newPlayer, oldState), move.playerId());
 
-        // Check for winner after state update
-        int winnerId = checkWinner(newState, move.playerId());
-
-        // Return new state with winner (or 0 if no winner yet)
         return new GameStateDTO(
                 isPlayer1 ? newPlayer : oldState.player1(),
                 isPlayer1 ? oldState.player2() : newPlayer,
+                nextPlayer,
                 winnerId
         );
+    }
+
+    private GameStateDTO newState(MoveRequestDTO move, boolean isPlayer1, PlayerStateDTO newPlayer, GameStateDTO oldState) {
+        return isPlayer1
+                ? new GameStateDTO(newPlayer, oldState.player2(), 0, 0)
+                : new GameStateDTO(oldState.player1(), newPlayer, 0, 0);
     }
 
     /**
