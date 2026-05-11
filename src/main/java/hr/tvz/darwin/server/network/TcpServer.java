@@ -1,5 +1,6 @@
-package hr.tvz.darwin.server;
+package hr.tvz.darwin.server.network;
 
+import hr.tvz.darwin.server.core.GameEngine;
 import hr.tvz.darwin.shared.dto.GameStateDTO;
 
 import java.io.IOException;
