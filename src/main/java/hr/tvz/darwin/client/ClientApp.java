@@ -25,6 +25,7 @@ public class ClientApp extends Application {
 
         try {
             tcpClient = new TcpClient("localhost", 8080);
+            // TODO: Does order of connect vs setOnMessage matter?
             tcpClient.connect();
             tcpClient.setOnMessage(controller::handleDTO);
             controller.setTcpClient(tcpClient);
