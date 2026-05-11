@@ -77,6 +77,21 @@ public class TcpServer {
                 Thread.ofVirtual().start(handler);
             }
 
+            // Exit the accept loop — both players are connected.
+            // Virtual threads are DAEMON threads — they don't keep the JVM alive.
+            // Without this loop, main() would return and the JVM would exit
+            // immediately, killing both player handlers mid-execution.
+            // This infinite loop keeps the main thread (non-daemon) alive
+            // so the virtual threads can actually run the game.
+            // When you kill the server process (Ctrl+C), this loop dies too.
+            while (true) {
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    break;
+                }
+            }
+
         } catch (IOException e) {
             System.err.println("Server error: " + e.getMessage());
             e.printStackTrace();
