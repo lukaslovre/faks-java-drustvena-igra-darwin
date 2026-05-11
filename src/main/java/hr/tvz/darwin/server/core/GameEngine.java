@@ -94,6 +94,8 @@ public class GameEngine {
      * @param sender  The ClientHandler that sent this (to send errors back)
      */
     public synchronized void processMove(MoveRequestDTO request, ClientHandler sender) {
+        // TODO: Is this missing game over validation? Check if winner exists? Anything else?
+
         // 1. TURN VALIDATION: Is it this player's turn?
         // If Player 1 sends a move but it's Player 2's turn, reject it.
         if (request.playerId() != getActivePlayerId()) {

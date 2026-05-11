@@ -88,6 +88,7 @@ public class GameController implements Initializable {
                     chatHistoryArea.appendText("Connected as Player " + myPlayerId + ". Waiting for opponent...\n");
                 }
                 case GameStateDTO s -> {
+                    // TODO: Should this have a further branch inside? Becase GameStateDTO can also bring game end, right? Analyze this.
                     clientState = ClientState.PLAYING;
                     bindingHelper.updateUI(s);
                     boolean myTurn = s.activePlayerId() == myPlayerId;
