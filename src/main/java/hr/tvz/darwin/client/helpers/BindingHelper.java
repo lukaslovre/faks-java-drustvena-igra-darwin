@@ -73,11 +73,11 @@ public class BindingHelper {
      * The opponent's progress bars will be added in Phase 4 when we have both
      * players' data displayed.
      */
-    public void updateUI(GameStateDTO state) {
-        // Only update OUR progress bars (Player 1's bars for simplicity)
-        // In Phase 4, the controller tells us which playerId "we" are
-        // TODO: This wasn't addressed in Phase 4 implementation. So currently it always shows player1 state. How should this be resolved? By passing another prop or? Is it a "bigger" issue?
-        updateProgressBars(state.player1());
+    public void updateUI(GameStateDTO state, int myPlayerId) {
+        PlayerStateDTO myState = (myPlayerId == 1) ? state.player1() : state.player2();
+        // PlayerStateDTO opponentState = (myPlayerId == 1) ? state.player2() : state.player1();
+
+        updateProgressBars(myState);
         updateWorkerPositions(state.player1(), state.player2());
     }
 

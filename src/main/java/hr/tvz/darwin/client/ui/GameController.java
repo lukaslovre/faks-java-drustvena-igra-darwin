@@ -90,7 +90,7 @@ public class GameController implements Initializable {
                 case GameStateDTO s -> {
                     // TODO: Should this have a further branch inside? Becase GameStateDTO can also bring game end, right? Analyze this.
                     clientState = ClientState.PLAYING;
-                    bindingHelper.updateUI(s);
+                    bindingHelper.updateUI(s, myPlayerId);
                     boolean myTurn = s.activePlayerId() == myPlayerId;
                     setButtonsEnabled(myTurn);
                 }
