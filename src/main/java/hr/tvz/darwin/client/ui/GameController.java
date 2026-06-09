@@ -21,7 +21,7 @@ import java.util.ResourceBundle;
 
 public class GameController implements Initializable {
 
-    private enum ClientState { DISCONNECTED, WAITING, PLAYING, GAME_OVER }
+    private enum ClientState {DISCONNECTED, WAITING, PLAYING, GAME_OVER}
 
     @FXML
     private ProgressBar botanyProgress;
