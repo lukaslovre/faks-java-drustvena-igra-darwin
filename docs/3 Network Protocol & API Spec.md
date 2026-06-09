@@ -13,7 +13,7 @@ The TCP architecture uses persistent sockets. The connection remains open for th
 
 ### 1.2 The Turn Loop Phase
 1.  **Action:** Player 1 clicks an Island. The Client sends `MoveRequestDTO(playerId=1, workerId=0, targetIsland=ISABELA)`.
-2.  **Validation:** The Server's `synchronized processMove()` checks if it's Player 1's turn and if Worker 0 has the required level.
+2.  **Validation:** The Server's `synchronized processMove()` checks if it's Player 1's turn and if Worker 0 has the required level. Server also checks if the game is already over
 3.  **Broadcast:** 
     *   *If Valid:* Server updates state and broadcasts the new `GameStateDTO` to *both* clients.
     *   *If Invalid:* Server sends `ErrorDTO("Worker level too low")` *only* to Player 1.

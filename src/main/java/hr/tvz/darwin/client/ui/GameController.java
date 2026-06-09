@@ -88,11 +88,17 @@ public class GameController implements Initializable {
                     chatHistoryArea.appendText("Connected as Player " + myPlayerId + ". Waiting for opponent...\n");
                 }
                 case GameStateDTO s -> {
-                    // TODO: Should this have a further branch inside? Becase GameStateDTO can also bring game end, right? Analyze this.
-                    clientState = ClientState.PLAYING;
                     bindingHelper.updateUI(s, myPlayerId);
-                    boolean myTurn = s.activePlayerId() == myPlayerId;
-                    setButtonsEnabled(myTurn);
+
+                    if (s.winnerId() != 0) {
+                        clientState = ClientState.GAME_OVER;
+                        disableIslandButtons();
+                        chatHistoryArea.appendText("GAME OVER! Player " + s.winnerId() + " wins!\n");
+                    } else {
+                        clientState = ClientState.PLAYING;
+                        boolean myTurn = s.activePlayerId() == myPlayerId;
+                        setButtonsEnabled(myTurn);
+                    }
                 }
                 case ErrorDTO e -> {
                     if (e.errorMessage().contains("Opponent disconnected")) {
