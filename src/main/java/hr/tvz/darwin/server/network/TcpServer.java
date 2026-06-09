@@ -1,6 +1,7 @@
 package hr.tvz.darwin.server.network;
 
 import hr.tvz.darwin.server.core.GameEngine;
+import hr.tvz.darwin.shared.dto.ErrorDTO;
 import hr.tvz.darwin.shared.dto.GameStateDTO;
 
 import java.io.IOException;
@@ -67,36 +68,30 @@ public class TcpServer {
             System.out.println("Darwin's Journey Server started on port " + PORT + "...");
             System.out.println("Waiting for Player 1 to connect...");
 
-            // Accept exactly 2 clients, then stop accepting new connections
-            while (clients.size() < 2) {
-                Socket socket = serverSocket.accept();  // BLOCKS until a client connects
+            // INFINITE LOOP: The server stays alive forever here.
+            // serverSocket.accept() blocks the main thread until someone connects.
+            while (true) {
+                Socket socket = serverSocket.accept();
 
-                // Assign player ID based on connection order (1 or 2)
-                int playerId = clients.size() + 1;
+                // If we already have 2 players, reject the 3rd connection
+                if (clients.size() >= 2) {
+                    System.out.println("Server full. Rejecting connection from " + socket.getRemoteSocketAddress());
+                    socket.close();
+                    continue; // Go back to waiting
+                }
+
+                // Determine Player ID safely (if list is empty -> 1, if size is 1 -> 2)
+                int playerId = clients.isEmpty() ? 1 : 2;
                 System.out.println("Player " + playerId + " connected from " + socket.getRemoteSocketAddress());
 
-                // Create the "waiter" (ClientHandler) for this client
                 ClientHandler handler = new ClientHandler(socket, playerId, engine, this);
-
-                // Add to the list BEFORE starting the thread (avoid race on the list)
                 clients.add(handler);
-
-                // Start the virtual thread — it begins running the ClientHandler's run() method
                 Thread.ofVirtual().start(handler);
             }
-            // Exit the accept loop — both players are connected.
-
-            // Virtual threads are DAEMON threads — they don't keep the JVM alive.
-            // Without this, main() would return and the JVM would exit
-            // immediately, killing both player handlers mid-execution.
-            // Keeps the main thread alive by waiting for the current thread to die (which it never will)
-            Thread.currentThread().join();
 
         } catch (IOException e) {
             System.err.println("Server error: " + e.getMessage());
             e.printStackTrace();
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
         }
     }
 
@@ -117,6 +112,30 @@ public class TcpServer {
         for (ClientHandler client : clients) {
             client.send(payload);
         }
+    }
+
+    /**
+     * Called by a ClientHandler when its socket throws an exception.
+     * Cleans up the entire lobby and prepares for a fresh game.
+     */
+    public synchronized void handleDisconnect() {
+        System.out.println("Initiating server teardown due to disconnect...");
+
+        // 1. Tell anyone still connected that the game is over
+        broadcast(new ErrorDTO("Opponent disconnected. Server resetting."));
+
+        // 2. Force-close all sockets. This safely kills the remaining Virtual Threads.
+        for (ClientHandler client : clients) {
+            client.closeConnection();
+        }
+
+        // 3. Clear the lobby
+        clients.clear();
+
+        // 4. Reset the game rules
+        engine.reset();
+
+        System.out.println("Server reset complete. Waiting for new players...");
     }
 
     /**

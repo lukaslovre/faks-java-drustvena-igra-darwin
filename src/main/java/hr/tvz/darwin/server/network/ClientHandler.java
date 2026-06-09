@@ -110,13 +110,10 @@ public class ClientHandler implements Runnable {
 
         } catch (Exception e) {
             // Client disconnected — IOException is normal when client closes
-            System.out.println("Player " + playerId + " disconnected: " + e.getMessage());
+            System.out.println("Player " + playerId + " disconnected.");
 
-            // Tell the other player the game is over
-            server.broadcast(new ErrorDTO("Opponent disconnected. Game Over."));
-
-            // In a full implementation, we'd clean up the client list here
-            // For this demo, we just let the remaining player see the error
+            // Tell the server to tear down the lobby
+            server.handleDisconnect();
         }
     }
 
@@ -148,6 +145,16 @@ public class ClientHandler implements Runnable {
             out.reset();  // Clear serialization cache — prevents stale references
         } catch (IOException e) {
             System.err.println("Error sending to Player " + playerId + ": " + e.getMessage());
+        }
+    }
+
+    public void closeConnection() {
+        try {
+            if (socket != null && !socket.isClosed()) {
+                socket.close();
+            }
+        } catch (IOException e) {
+            // Ignore, we are closing it anyway
         }
     }
 

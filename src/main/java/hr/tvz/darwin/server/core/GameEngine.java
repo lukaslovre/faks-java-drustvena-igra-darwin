@@ -269,4 +269,15 @@ public class GameEngine {
     public static int getTotalGamesPlayed() {
         return totalGamesPlayed;
     }
+
+    /**
+     * Resets the game state for a new match.
+     * Notice we do NOT reset totalGlobalSamples or totalGamesPlayed,
+     * as those must persist across multiple matches for the RMI Archive.
+     */
+    public synchronized void reset() {
+        moveHistory.clear();
+        currentState = createInitialState();
+        System.out.println("GameEngine state has been reset.");
+    }
 }
