@@ -37,7 +37,9 @@ public record WelcomeDTO(int playerId) implements Serializable {
 public record GameStateDTO(
     PlayerStateDTO player1, 
     PlayerStateDTO player2,
-    int winnerId 
+    int activePlayerId,
+    int winnerId,
+    MoveRequestDTO lastMove
 ) implements Serializable {
     @Serial private static final long serialVersionUID = 1L;
 }

@@ -10,13 +10,13 @@ import java.util.List;
 
 /**
  * The Brain of the server — validates moves and manages game state.
- *
+ * <p>
  * CONCURRENCY MODEL (Ishod 4):
  * The `synchronized` keyword on processMove() acts like a lock.
  * Only ONE thread can execute processMove() at a time, even if two
  * clients send moves in the exact same microsecond. This prevents
  * race conditions where two threads simultaneously modify currentState.
- *
+ * <p>
  * IMMUTABLE STATE:
  * Java records are immutable (like `const` objects in JS). When state
  * changes, we create a NEW GameStateDTO rather than mutating fields.
@@ -24,29 +24,43 @@ import java.util.List;
  */
 public class GameEngine {
 
-    /** Turn history determines whose turn it is. Even = Player 1, Odd = Player 2. */
+    /**
+     * Turn history determines whose turn it is. Even = Player 1, Odd = Player 2.
+     */
     private final List<MoveRequestDTO> moveHistory = new ArrayList<>();
 
-    /** The authoritative game state — broadcast to all clients after every move. */
+    /**
+     * The authoritative game state — broadcast to all clients after every move.
+     */
     private GameStateDTO currentState;
 
-    /** Reference back to TcpServer so we can broadcast state changes. */
+    /**
+     * Reference back to TcpServer so we can broadcast state changes.
+     */
     private TcpServer server;
 
-    /** Total samples collected across all games (for RMI Darwin Archive). */
+    /**
+     * Total samples collected across all games (for RMI Darwin Archive).
+     */
     private static int totalGlobalSamples = 0;
 
-    /** Total games played on this server (for RMI Darwin Archive). */
+    /**
+     * Total games played on this server (for RMI Darwin Archive).
+     */
     private static int totalGamesPlayed = 0;
 
-    /** Win condition: first player to reach this level on any track wins. */
+    /**
+     * Win condition: first player to reach this level on any track wins.
+     */
     private static final int WIN_LEVEL = 5;
 
     public GameEngine() {
         this.currentState = createInitialState();
     }
 
-    /** Sets the server reference so the engine can broadcast to all clients. */
+    /**
+     * Sets the server reference so the engine can broadcast to all clients.
+     */
     public void setServer(TcpServer server) {
         this.server = server;
     }
@@ -64,7 +78,8 @@ public class GameEngine {
                         new WorkerDTO(0, 1, null),
                         new WorkerDTO(1, 1, null)),
                 1,
-                0
+                0,
+                null
         );
     }
 
@@ -77,14 +92,16 @@ public class GameEngine {
         return (moveHistory.size() % 2 == 0) ? 1 : 2;
     }
 
-    /** Returns the current game state (for testing). */
+    /**
+     * Returns the current game state (for testing).
+     */
     public GameStateDTO getCurrentState() {
         return currentState;
     }
 
     /**
      * THE MAIN GAME LOGIC — synchronized to prevent race conditions.
-     *
+     * <p>
      * Java synchronized acts like a mutex lock. If Thread A (Player 1)
      * is inside this method, Thread B (Player 2) must wait outside until
      * Thread A finishes. This ensures only one thread modifies currentState
@@ -142,33 +159,24 @@ public class GameEngine {
     /**
      * Derives a NEW GameStateDTO from the old one after applying a move.
      * Like a Redux reducer: (oldState, action) => newState
-     *
-     * Rules of our simplified game:
-     * 1. Worker goes to the island (currently working — track increases by 1)
-     * 2. Worker levels up (level 1→2, 2→3)
-     * 3. If worker was already level 3, it stays at level 3
-     * 4. Player's track for that island's reward increases by 1
      */
     private GameStateDTO generateNewState(GameStateDTO oldState, MoveRequestDTO move) {
         boolean isPlayer1 = move.playerId() == 1;
-        PlayerStateDTO oldPlayer = isPlayer1 ? oldState.player1() : oldState.player2();
-        PlayerStateDTO newPlayer = applyWorkerAction(oldPlayer, move);
 
-        int nextPlayer = (move.playerId() == 1) ? 2 : 1;
-        int winnerId = checkWinner(newState(move, isPlayer1, newPlayer, oldState), move.playerId());
+        // 1. Calculate the new player states.
+        // The player who moved gets an updated state via applyWorkerAction.
+        // The other player's state stays exactly the same.
+        PlayerStateDTO newP1 = isPlayer1 ? applyWorkerAction(oldState.player1(), move) : oldState.player1();
+        PlayerStateDTO newP2 = !isPlayer1 ? applyWorkerAction(oldState.player2(), move) : oldState.player2();
 
-        return new GameStateDTO(
-                isPlayer1 ? newPlayer : oldState.player1(),
-                isPlayer1 ? oldState.player2() : newPlayer,
-                nextPlayer,
-                winnerId
-        );
-    }
+        // 2. Determine whose turn is next
+        int nextPlayerId = isPlayer1 ? 2 : 1;
 
-    private GameStateDTO newState(MoveRequestDTO move, boolean isPlayer1, PlayerStateDTO newPlayer, GameStateDTO oldState) {
-        return isPlayer1
-                ? new GameStateDTO(newPlayer, oldState.player2(), 0, 0)
-                : new GameStateDTO(oldState.player1(), newPlayer, 0, 0);
+        // 3. Check if this move resulted in a win
+        int winnerId = checkWinner(newP1, newP2);
+
+        // 4. Assemble and return the final immutable state
+        return new GameStateDTO(newP1, newP2, nextPlayerId, winnerId, move);
     }
 
     /**
@@ -204,19 +212,17 @@ public class GameEngine {
     }
 
     /**
-     * Checks if the active player has won (reached Level 5 on any track).
-     * @return 0 if no winner, playerId (1 or 2) if someone won
+     * Checks if either player has won (reached Level 5 on any track).
+     *
+     * @return 0 if no winner, 1 if Player 1 wins, 2 if Player 2 wins
      */
-    private int checkWinner(GameStateDTO state, int activePlayerId) {
-        // Check all three tracks for Player who just moved
-        if (state.player1().botany() >= WIN_LEVEL
-                || state.player1().zoology() >= WIN_LEVEL
-                || state.player1().geology() >= WIN_LEVEL) {
+    private int checkWinner(PlayerStateDTO p1, PlayerStateDTO p2) {
+        // Check Player 1
+        if (p1.botany() >= WIN_LEVEL || p1.zoology() >= WIN_LEVEL || p1.geology() >= WIN_LEVEL) {
             return 1;
         }
-        if (state.player2().botany() >= WIN_LEVEL
-                || state.player2().zoology() >= WIN_LEVEL
-                || state.player2().geology() >= WIN_LEVEL) {
+        // Check Player 2
+        if (p2.botany() >= WIN_LEVEL || p2.zoology() >= WIN_LEVEL || p2.geology() >= WIN_LEVEL) {
             return 2;
         }
         return 0;
@@ -224,6 +230,7 @@ public class GameEngine {
 
     /**
      * Gets a specific worker from the current state.
+     *
      * @param playerId 1 or 2
      * @param workerId 0 or 1
      * @return The WorkerDTO or null if invalid
@@ -237,18 +244,24 @@ public class GameEngine {
         };
     }
 
-    /** Calculates total samples (sum of all track points) for RMI Darwin Archive. */
+    /**
+     * Calculates total samples (sum of all track points) for RMI Darwin Archive.
+     */
     private static int calculateTotalSamples(GameStateDTO state) {
         return state.player1().botany() + state.player1().zoology() + state.player1().geology()
                 + state.player2().botany() + state.player2().zoology() + state.player2().geology();
     }
 
-    /** Returns total global samples (for RMI). */
+    /**
+     * Returns total global samples (for RMI).
+     */
     public static int getTotalGlobalSamples() {
         return totalGlobalSamples;
     }
 
-    /** Returns total games played (for RMI). */
+    /**
+     * Returns total games played (for RMI).
+     */
     public static int getTotalGamesPlayed() {
         return totalGamesPlayed;
     }
