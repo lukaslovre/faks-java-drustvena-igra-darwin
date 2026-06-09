@@ -67,6 +67,12 @@ public class GameController implements Initializable {
     private TcpClient tcpClient;
     private int myPlayerId = -1;
     private ClientState clientState = ClientState.DISCONNECTED;
+    // volatile: all reads/writes happen on the JavaFX thread via Platform.runLater, so
+    // volatile isn't strictly required. But it's defense-in-depth: if the architecture
+    // ever changes and isAnimating is touched from a different thread, volatile guarantees
+    // visibility (prevents JIT from caching a stale value in a register).
+    private volatile boolean isAnimating = false;
+    private GameStateDTO pendingState = null;
 
     private static final Map<String, Island> BUTTON_TO_ISLAND = Map.of(
             "islandIsabela", Island.ISABELA,
@@ -88,17 +94,43 @@ public class GameController implements Initializable {
                     chatHistoryArea.appendText("Connected as Player " + myPlayerId + ". Waiting for opponent...\n");
                 }
                 case GameStateDTO s -> {
-                    bindingHelper.updateUI(s, myPlayerId);
-
-                    if (s.winnerId() != 0) {
-                        clientState = ClientState.GAME_OVER;
-                        disableIslandButtons();
-                        chatHistoryArea.appendText("GAME OVER! Player " + s.winnerId() + " wins!\n");
-                    } else {
-                        clientState = ClientState.PLAYING;
-                        boolean myTurn = s.activePlayerId() == myPlayerId;
-                        setButtonsEnabled(myTurn);
+                    // Initial state from server — no move has been made yet
+                    if (s.lastMove() == null) {
+                        bindingHelper.updateProgressBars(myPlayerId == 1 ? s.player1() : s.player2());
+                        updateGamePhase(s);
+                        return;
                     }
+
+                    // Safety guard: if an animation is still running, stash the latest
+                    // state and skip. The animation callback will use pendingState instead
+                    // of the original captured state, ensuring no intermediate state is lost.
+                    if (isAnimating) {
+                        pendingState = s;
+                        return;
+                    }
+
+                    isAnimating = true;
+                    disableIslandButtons();
+
+                    // Extract move data from the state
+                    MoveRequestDTO move = s.lastMove();
+                    Circle movingWorker = getWorkerCircle(move.playerId(), move.workerId());
+                    double[] targetPos = bindingHelper.getIslandPosition(move.targetIsland());
+                    WorkerDTO updatedWorker = getWorkerData(s, move.playerId(), move.workerId());
+
+                    // Play the turn animation; on completion, refresh UI with the latest
+                    // state (use pendingState if one was queued during animation)
+                    animationHelper.playTurnAnimation(
+                            movingWorker, targetPos[0], targetPos[1], updatedWorker.level(),
+                            () -> Platform.runLater(() -> {
+                                GameStateDTO stateToApply = (pendingState != null) ? pendingState : s;
+                                pendingState = null;
+                                bindingHelper.updateProgressBars(
+                                        myPlayerId == 1 ? stateToApply.player1() : stateToApply.player2());
+                                updateGamePhase(stateToApply);
+                                isAnimating = false;
+                            })
+                    );
                 }
                 case ErrorDTO e -> {
                     if (e.errorMessage().contains("Opponent disconnected")) {
@@ -118,8 +150,7 @@ public class GameController implements Initializable {
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         bindingHelper = new BindingHelper(
-                botanyProgress, zoologyProgress, geologyProgress,
-                p1Worker0, p1Worker1, p2Worker0, p2Worker1
+                botanyProgress, zoologyProgress, geologyProgress
         );
         animationHelper = new AnimationHelper();
         disableIslandButtons();
@@ -156,5 +187,26 @@ public class GameController implements Initializable {
         islandIsabela.setDisable(!enabled);
         islandSantaCruz.setDisable(!enabled);
         islandSanCristobal.setDisable(!enabled);
+    }
+
+    private Circle getWorkerCircle(int playerId, int workerId) {
+        if (playerId == 1) return workerId == 0 ? p1Worker0 : p1Worker1;
+        else return workerId == 0 ? p2Worker0 : p2Worker1;
+    }
+
+    private WorkerDTO getWorkerData(GameStateDTO state, int playerId, int workerId) {
+        PlayerStateDTO p = playerId == 1 ? state.player1() : state.player2();
+        return workerId == 0 ? p.worker0() : p.worker1();
+    }
+
+    private void updateGamePhase(GameStateDTO s) {
+        if (s.winnerId() != 0) {
+            clientState = ClientState.GAME_OVER;
+            disableIslandButtons();
+            chatHistoryArea.appendText("GAME OVER! Player " + s.winnerId() + " wins!\n");
+        } else {
+            clientState = ClientState.PLAYING;
+            setButtonsEnabled(s.activePlayerId() == myPlayerId);
+        }
     }
 }

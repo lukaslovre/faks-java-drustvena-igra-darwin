@@ -1,121 +1,65 @@
 package hr.tvz.darwin.client.helpers;
 
+import javafx.animation.FillTransition;
+import javafx.animation.PauseTransition;
+import javafx.animation.SequentialTransition;
 import javafx.animation.TranslateTransition;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import javafx.util.Duration;
 
 /**
- * Triggers JavaFX Transitions for worker token movement and level-up.
+ * Plays a single coordinated animation for one player's turn on the game board.
  * <p>
- * In JS you'd do: element.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(100px)' }], { duration: 500 })
- * In JavaFX, you create a TranslateTransition object, configure it, and call play().
+ * The choreography is a {@link SequentialTransition} of four stages:
+ * <ol>
+ *   <li><b>go</b> — TranslateTransition: slides the worker Circle toward the target island</li>
+ *   <li><b>levelUp</b> — FillTransition: brightens the Circle's fill to reflect the new level</li>
+ *   <li><b>pause</b> — PauseTransition: holds on the island for 500ms so the user can see it</li>
+ *   <li><b>back</b> — TranslateTransition: resets translateX/Y to 0, snapping the worker home</li>
+ * </ol>
  * <p>
- * These are "fire-and-forget" — once play() is called, JavaFX runs the animation
- * on its own rendering thread (the JavaFX Application Thread).
- * <p>
- * IMPORTANT (UI Thread Safety):
- * All methods here are designed to be called from Platform.runLater().
- * Never call them from a background/Virtual Thread directly.
- * <p>
- * METHODS:
- * - animateTokenToIsland() — Slides a Circle from its current position to an island
- * - animateTokenBack() — Slides a Circle back to the player's base
- * - animateLevelUp() — Changes the Circle's fill color (lighter shade) to show level up
- * - createDummyTest() — Moves a token in a loop for quick visual testing
+ * Thread safety: call from the JavaFX Application Thread only
+ * (i.e. inside {@code Platform.runLater()}).
  */
 public class AnimationHelper {
 
-    // Duration constants — tweak these for pacing
-    private static final Duration TRAVEL_TIME = Duration.millis(600);
-    private static final Duration RETURN_TIME = Duration.millis(600);
+    public void playTurnAnimation(Circle worker, double targetX, double targetY,
+                                  int newLevel, Runnable onComplete) {
+        // Compute displacement from worker's home to target island
+        double dx = targetX - worker.getLayoutX();
+        double dy = targetY - worker.getLayoutY();
 
-    /**
-     * Moves a worker Circle from its current position to an island position.
-     * This uses TranslateTransition which applies a TRANSLATION (offset) to the node,
-     * NOT an absolute layout change.
-     * <p>
-     * The caller must pass the total displacement (dx, dy) to move the token.
-     * These are computed by the BindingHelper as:
-     * dx = islandX - worker.getLayoutX()
-     * dy = islandY - worker.getLayoutY()
-     *
-     * @param worker The Circle node to animate
-     * @param toX    Absolute X destination within the parent pane
-     * @param toY    Absolute Y destination within the parent pane
-     * @param onDone Runnable to execute AFTER the animation finishes (or null)
-     */
-    public void animateTokenToIsland(Circle worker, double toX, double toY, Runnable onDone) {
-        // Calculate the offset needed to reach the target
-        double dx = toX - worker.getLayoutX();
-        double dy = toY - worker.getLayoutY();
+        // Derive a brighter fill color based on the new level
+        // Level 2 -> brightness 0.7, Level 3 -> brightness 0.9
+        Color originalColor = (Color) worker.getFill();
+        Color leveledColor = originalColor.deriveColor(0, 1,
+                0.3 + (newLevel * 0.2), 1);
 
-        TranslateTransition tt = new TranslateTransition(TRAVEL_TIME, worker);
-        tt.setByX(dx);
-        tt.setByY(dy);
+        // Step 1: Slide worker from home toward the target island
+        TranslateTransition go = new TranslateTransition(Duration.millis(600), worker);
+        go.setByX(dx);
+        go.setByY(dy);
 
-        // setOnFinished fires when the animation completes — like .then() in JS Promises
-        if (onDone != null) {
-            tt.setOnFinished(e -> onDone.run());
+        // Step 2: Brighten the worker's fill to indicate the level-up
+        FillTransition levelUp = new FillTransition(Duration.millis(300),
+                worker, originalColor, leveledColor);
+
+        // Step 3: Pause so the player can see the worker on the island
+        PauseTransition pause = new PauseTransition(Duration.millis(500));
+
+        // Step 4: Snap worker back home by resetting translate offset to zero
+        TranslateTransition back = new TranslateTransition(Duration.millis(600), worker);
+        back.setToX(0);
+        back.setToY(0);
+
+        // Fire the callback after the worker returns home
+        if (onComplete != null) {
+            back.setOnFinished(e -> onComplete.run());
         }
 
-        tt.play();
-    }
-
-    /**
-     * Moves a worker Circle back to its "home" base position.
-     * Resets the TranslateTransform to 0,0 which snaps the token back
-     * to its original layoutX/layoutY (the base position).
-     * <p>
-     * Why reset to (0,0)?
-     * TranslateTransition adds an OFFSET to the node's layout position.
-     * After moving to an island, the token has a non-zero translateX/Y.
-     * Animating back to (0,0) "slides it home" to where it started.
-     *
-     * @param worker The Circle to animate back
-     * @param onDone Callback after animation finishes
-     */
-    public void animateTokenBack(Circle worker, Runnable onDone) {
-        TranslateTransition tt = new TranslateTransition(RETURN_TIME, worker);
-        // Animate from current offset back to 0,0 (the base position)
-        tt.setToX(0);
-        tt.setToY(0);
-
-        if (onDone != null) {
-            tt.setOnFinished(e -> onDone.run());
-        }
-
-        tt.play();
-    }
-
-    /**
-     * Changes the worker token's fill color to indicate a level-up.
-     * <p>
-     * Level 1 -> Level 2: lighter shade of the base color
-     * Level 2 -> Level 3: even lighter shade (gold tint)
-     * <p>
-     * In Phase 5, this will be combined with a timeline animation.
-     * For now, it's an instant color swap.
-     *
-     * @param worker   The Circle to re-color
-     * @param newLevel The worker's level AFTER leveling up (2 or 3)
-     */
-    public void animateLevelUp(Circle worker, int newLevel) {
-        Color baseColor = (Color) worker.getFill();
-
-        // Derive a lighter shade based on level
-        double brightness = 0.3 + (newLevel * 0.2); // Level 2 -> 0.7, Level 3 -> 0.9
-        Color leveledColor = baseColor.deriveColor(0, 1, brightness, 1);
-
-        worker.setFill(leveledColor);
-    }
-
-    /**
-     * Resets the worker's translate offset to (0,0) instantly (no animation).
-     * Useful when restoring state from a GameStateDTO (BindingHelper does this).
-     */
-    public void resetPosition(Circle worker) {
-        worker.setTranslateX(0);
-        worker.setTranslateY(0);
+        // Chain all four stages sequentially and play
+        SequentialTransition seq = new SequentialTransition(go, levelUp, pause, back);
+        seq.play();
     }
 }
