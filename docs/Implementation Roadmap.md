@@ -36,10 +36,12 @@
 - [x] **Playtest:** You should now be able to click an island on Client A, the server validates it, and Client B's screen updates. (Boom, **Ishod 1 & 3** core done).
 
 ### Phase 5: Animations & Polish (The "CSS Transitions")
-*Make it look like a game.*
-- [ ] **Worker Animations:** In `AnimationHelper.java`, use `TranslateTransition` to slide the worker token to the island.
-- [ ] **Async Wait:** Use a Virtual Thread to `Thread.sleep(1000)` after the animation, then update the worker's color (level up), then slide it back. (Boom, **Ishod 4** done).
-- [ ] **Chat System:** Implement the `ChatMessageDTO` flow so players can type to each other.
+*Make it look like a game by separating Authoritative State from Visual State.*
+- [x] **Chat System:** Implement the `ChatMessageDTO` flow so players can type to each other.
+- [ ] **Refactor BindingHelper (Coordinate Fix):** Remove the `updateWorkerPositions` logic from `BindingHelper`. Workers should permanently keep their `layoutX/Y` at their base, and we will only animate their `translateX/Y`.
+- [ ] **Animation Choreography:** In `AnimationHelper`, create a sequence that chains animations together: Travel to Island $\rightarrow$ Change Color (Level Up) $\rightarrow$ Travel Back to Base.
+- [ ] **Intercept State Updates:** In `GameController`, intercept incoming `GameStateDTO`s. Instead of instantly updating the UI, read `state.lastMove()`. Trigger the animation sequence first, and *only when it finishes*, update the Progress Bars and unlock the UI.
+- [ ] **UI Locking:** Ensure that while an animation is playing, the Island buttons are temporarily disabled so players can't spam moves and break the visual sequence.
 
 ### Phase 6: The "Side Quests" (XML & RMI)
 *These are isolated features. Do them last so they don't break the core game.*
