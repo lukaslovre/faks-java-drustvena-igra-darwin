@@ -33,7 +33,7 @@
 - [x] **Client Listener Thread:** Create a Virtual Thread in the client that listens for Server DTOs.
 - [x] **State Binding:** When `GameStateDTO` arrives, route it to `BindingHelper.java`. **CRITICAL:** Use `Platform.runLater(() -> bindingHelper.updateUI(state));`.
 - [x] **Sending Moves:** Hook up the UI Island buttons to send `MoveRequestDTO` to the server.
-- [ ] **Playtest:** You should now be able to click an island on Client A, the server validates it, and Client B's screen updates. (Boom, **Ishod 1 & 3** core done).
+- [x] **Playtest:** You should now be able to click an island on Client A, the server validates it, and Client B's screen updates. (Boom, **Ishod 1 & 3** core done).
 
 ### Phase 5: Animations & Polish (The "CSS Transitions")
 *Make it look like a game.*

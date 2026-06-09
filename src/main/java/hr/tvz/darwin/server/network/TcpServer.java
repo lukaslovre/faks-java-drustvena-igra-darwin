@@ -11,19 +11,19 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * The Host — accepts TCP connections and assigns them to ClientHandlers.
- *
+ * <p>
  * BLOCKING I/O:
  * The `serverSocket.accept()` call is BLOCKING. The code pauses entirely
  * until a client connects (like `await` in async JS). This is fine because
  * we're inside a Virtual Thread — it doesn't block the entire process,
  * just this thread. Other Virtual Threads can run while this one waits.
- *
+ * <p>
  * VIRTUAL THREADS (Java 21+ / 25):
  * Virtual Threads are lightweight threads (like `async` tasks in JS).
  * They cost almost zero memory, so we can create one per connected client
  * without exhausting resources. `Thread.ofVirtual().start(handler)` spawns
  * a new virtual thread that runs the ClientHandler's run() method.
- *
+ * <p>
  * THREAD-SAFE CLIENT LIST:
  * CopyOnWriteArrayList is used instead of ArrayList because if Player 2
  * disconnects while we're broadcasting to the list, an ArrayList would
@@ -32,16 +32,24 @@ import java.util.concurrent.CopyOnWriteArrayList;
  */
 public class TcpServer {
 
-    /** Port where the TCP server listens for connections. */
+    /**
+     * Port where the TCP server listens for connections.
+     */
     private static final int PORT = 8080;
 
-    /** Thread-safe list of all connected client handlers. */
+    /**
+     * Thread-safe list of all connected client handlers.
+     */
     private final List<ClientHandler> clients = new CopyOnWriteArrayList<>();
 
-    /** The game logic engine — validates moves and manages state. */
+    /**
+     * The game logic engine — validates moves and manages state.
+     */
     private final GameEngine engine;
 
-    /** Flag to track if game has started (both players connected). */
+    /**
+     * Flag to track if game has started (both players connected).
+     */
     private boolean gameStarted = false;
 
     public TcpServer() {
@@ -76,32 +84,26 @@ public class TcpServer {
                 // Start the virtual thread — it begins running the ClientHandler's run() method
                 Thread.ofVirtual().start(handler);
             }
-
             // Exit the accept loop — both players are connected.
+
             // Virtual threads are DAEMON threads — they don't keep the JVM alive.
-            // Without this loop, main() would return and the JVM would exit
+            // Without this, main() would return and the JVM would exit
             // immediately, killing both player handlers mid-execution.
-            // This infinite loop keeps the main thread (non-daemon) alive
-            // so the virtual threads can actually run the game.
-            // When you kill the server process (Ctrl+C), this loop dies too.
-            while (true) {
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException e) {
-                    break;
-                }
-            }
+            // Keeps the main thread alive by waiting for the current thread to die (which it never will)
+            Thread.currentThread().join();
 
         } catch (IOException e) {
             System.err.println("Server error: " + e.getMessage());
             e.printStackTrace();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
         }
     }
 
     /**
      * Broadcasts a message to ALL connected clients.
      * Called by GameEngine after every valid move.
-     *
+     * <p>
      * WHY SYNCHRONIZED?
      * The `synchronized` here isn't strictly necessary since clients
      * list is CopyOnWriteArrayList (already thread-safe for iteration).
