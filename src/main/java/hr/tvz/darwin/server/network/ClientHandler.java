@@ -1,6 +1,7 @@
 package hr.tvz.darwin.server.network;
 
 import hr.tvz.darwin.server.core.GameEngine;
+import hr.tvz.darwin.server.core.InvalidMoveException;
 import hr.tvz.darwin.shared.dto.*;
 
 import java.io.IOException;
@@ -97,7 +98,11 @@ public class ClientHandler implements Runnable {
                     case MoveRequestDTO move -> {
                         System.out.println("Player " + move.playerId() + " move request: Worker "
                                 + move.workerId() + " -> " + move.targetIsland());
-                        engine.processMove(move, this);
+                        try {
+                            engine.processMove(move);
+                        } catch (InvalidMoveException e) {
+                            send(new ErrorDTO(e.getMessage()));
+                        }
                     }
                     case ChatMessageDTO chat -> {
                         System.out.println("Player " + chat.playerId() + " chat: " + chat.message());

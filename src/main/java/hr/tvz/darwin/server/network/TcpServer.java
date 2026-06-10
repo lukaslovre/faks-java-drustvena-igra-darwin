@@ -55,7 +55,7 @@ public class TcpServer {
 
     public TcpServer() {
         this.engine = new GameEngine();
-        this.engine.setServer(this);
+        this.engine.setOnStateChanged(this::broadcast);
     }
 
     /**

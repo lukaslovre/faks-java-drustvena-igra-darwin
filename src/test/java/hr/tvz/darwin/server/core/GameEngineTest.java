@@ -1,13 +1,9 @@
 package hr.tvz.darwin.server.core;
 
-import hr.tvz.darwin.server.network.ClientHandler;
-import hr.tvz.darwin.server.network.TcpServer;
 import hr.tvz.darwin.shared.Island;
 import hr.tvz.darwin.shared.dto.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
-import java.io.IOException;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -20,48 +16,17 @@ import static org.junit.jupiter.api.Assertions.*;
  * Green: We implement just enough to pass.
  * Refactor: Clean up the implementation.
  * <p>
- * MOCKING STRATEGY:
- * We use a simple TestClientHandler instead of Mockito. This captures
- * what DTOs the engine tries to send back to clients, letting us verify
- * error cases without complex mock setups.
+ * ERROR HANDLING:
+ * GameEngine throws InvalidMoveException when a business rule is violated,
+ * instead of sending network DTOs directly. This keeps the domain layer pure.
  */
 class GameEngineTest {
 
     private GameEngine engine;
-    private TestClientHandler player1Handler;
-    private TestClientHandler player2Handler;
-
-    /**
-     * A real ClientHandler for testing — captures sent DTOs instead of sending over TCP.
-     */
-    static class TestClientHandler extends ClientHandler {
-        private Object lastSentPayload;
-
-        TestClientHandler(int playerId, GameEngine engine, TcpServer server) throws IOException {
-            super(null, playerId, engine, server);
-        }
-
-        @Override
-        public synchronized void send(Object payload) {
-            this.lastSentPayload = payload;
-        }
-
-        public Object getLastSentPayload() {
-            return lastSentPayload;
-        }
-
-        public ErrorDTO getLastError() {
-            return (lastSentPayload instanceof ErrorDTO) ? (ErrorDTO) lastSentPayload : null;
-        }
-    }
 
     @BeforeEach
-    void setUp() throws IOException {
+    void setUp() {
         engine = new GameEngine();
-        TcpServer server = new TcpServer();
-        engine.setServer(server);
-        player1Handler = new TestClientHandler(1, engine, server);
-        player2Handler = new TestClientHandler(2, engine, server);
     }
 
     // === Turn Management Tests ===
@@ -73,17 +38,17 @@ class GameEngineTest {
     }
 
     @Test
-    void afterPlayer1Moves_itsPlayer2Turn() {
-        engine.processMove(new MoveRequestDTO(1, 0, Island.ISABELA), player1Handler);
+    void afterPlayer1Moves_itsPlayer2Turn() throws InvalidMoveException {
+        engine.processMove(new MoveRequestDTO(1, 0, Island.ISABELA));
 
         assertEquals(2, engine.getActivePlayerId());
         assertEquals(2, engine.getCurrentState().activePlayerId());
     }
 
     @Test
-    void afterPlayer2Moves_itsPlayer1TurnAgain() {
-        engine.processMove(new MoveRequestDTO(1, 0, Island.ISABELA), player1Handler);
-        engine.processMove(new MoveRequestDTO(2, 0, Island.ISABELA), player2Handler);
+    void afterPlayer2Moves_itsPlayer1TurnAgain() throws InvalidMoveException {
+        engine.processMove(new MoveRequestDTO(1, 0, Island.ISABELA));
+        engine.processMove(new MoveRequestDTO(2, 0, Island.ISABELA));
 
         assertEquals(1, engine.getActivePlayerId());
         assertEquals(1, engine.getCurrentState().activePlayerId());
@@ -93,26 +58,23 @@ class GameEngineTest {
 
     @Test
     void player2CannotMoveOnPlayer1Turn() {
-        MoveRequestDTO move = new MoveRequestDTO(2, 0, Island.ISABELA);
-        engine.processMove(move, player2Handler);
+        InvalidMoveException ex = assertThrows(InvalidMoveException.class,
+                () -> engine.processMove(new MoveRequestDTO(2, 0, Island.ISABELA)));
 
-        ErrorDTO error = player2Handler.getLastError();
-        assertNotNull(error, "Should send error when wrong player moves");
-        assertEquals("It is not your turn!", error.errorMessage());
+        assertEquals("It is not your turn!", ex.getMessage());
         assertEquals(0, engine.getCurrentState().player1().botany(), "State should not change");
     }
 
     @Test
-    void player1CannotMoveOnPlayer2Turn() {
+    void player1CannotMoveOnPlayer2Turn() throws InvalidMoveException {
         // Player 1 moves first
-        engine.processMove(new MoveRequestDTO(1, 0, Island.ISABELA), player1Handler);
+        engine.processMove(new MoveRequestDTO(1, 0, Island.ISABELA));
 
         // Player 1 tries to move again (should fail)
-        engine.processMove(new MoveRequestDTO(1, 0, Island.ISABELA), player1Handler);
+        InvalidMoveException ex = assertThrows(InvalidMoveException.class,
+                () -> engine.processMove(new MoveRequestDTO(1, 0, Island.ISABELA)));
 
-        ErrorDTO error = player1Handler.getLastError();
-        assertNotNull(error, "Should send error on wrong turn");
-        assertEquals("It is not your turn!", error.errorMessage());
+        assertEquals("It is not your turn!", ex.getMessage());
     }
 
     // === Worker Level Validation Tests ===
@@ -120,39 +82,36 @@ class GameEngineTest {
     @Test
     void level1WorkerCannotGoToSanCristobal() {
         // San Cristobal requires Level 3
-        MoveRequestDTO move = new MoveRequestDTO(1, 0, Island.SAN_CRISTOBAL);
-        engine.processMove(move, player1Handler);
+        InvalidMoveException ex = assertThrows(InvalidMoveException.class,
+                () -> engine.processMove(new MoveRequestDTO(1, 0, Island.SAN_CRISTOBAL)));
 
-        ErrorDTO error = player1Handler.getLastError();
-        assertNotNull(error, "Should reject level 1 worker going to level 3 island");
-        assertTrue(error.errorMessage().contains("too low"));
+        assertTrue(ex.getMessage().contains("too low"));
     }
 
     @Test
-    void level1WorkerCanGoToIsabela() {
-        MoveRequestDTO move = new MoveRequestDTO(1, 0, Island.ISABELA);
-        engine.processMove(move, player1Handler);
+    void level1WorkerCanGoToIsabela() throws InvalidMoveException {
+        engine.processMove(new MoveRequestDTO(1, 0, Island.ISABELA));
 
-        assertNull(player1Handler.getLastError(), "Should accept valid move");
+        // No exception thrown — move was accepted
     }
 
     @Test
-    void level2WorkerCanGoToSantaCruz() {
+    void level2WorkerCanGoToSantaCruz() throws InvalidMoveException {
         // First, level up worker 0 to level 2 by going to Isabela
-        engine.processMove(new MoveRequestDTO(1, 0, Island.ISABELA), player1Handler);
-        engine.processMove(new MoveRequestDTO(2, 0, Island.ISABELA), player2Handler);
+        engine.processMove(new MoveRequestDTO(1, 0, Island.ISABELA));
+        engine.processMove(new MoveRequestDTO(2, 0, Island.ISABELA));
 
         // Now worker 0 is level 2 — can go to Santa Cruz (requires level 2)
-        engine.processMove(new MoveRequestDTO(1, 0, Island.SANTA_CRUZ), player1Handler);
+        engine.processMove(new MoveRequestDTO(1, 0, Island.SANTA_CRUZ));
 
-        assertNull(player1Handler.getLastError(), "Should accept level 2 worker at Santa Cruz");
+        // No exception thrown — move was accepted
     }
 
     // === State Update Tests ===
 
     @Test
-    void validMoveIncreasesPlayerTrack() {
-        engine.processMove(new MoveRequestDTO(1, 0, Island.ISABELA), player1Handler);
+    void validMoveIncreasesPlayerTrack() throws InvalidMoveException {
+        engine.processMove(new MoveRequestDTO(1, 0, Island.ISABELA));
 
         // Isabela rewards +1 Botany
         assertEquals(1, engine.getCurrentState().player1().botany(),
@@ -162,8 +121,8 @@ class GameEngineTest {
     }
 
     @Test
-    void validMoveLevelsUpWorker() {
-        engine.processMove(new MoveRequestDTO(1, 0, Island.ISABELA), player1Handler);
+    void validMoveLevelsUpWorker() throws InvalidMoveException {
+        engine.processMove(new MoveRequestDTO(1, 0, Island.ISABELA));
 
         // Worker 0 started at level 1, should now be level 2
         assertEquals(2, engine.getCurrentState().player1().worker0().level(),
@@ -171,23 +130,23 @@ class GameEngineTest {
     }
 
     @Test
-    void workerLevelCapsAt3() {
+    void workerLevelCapsAt3() throws InvalidMoveException {
         // Level up worker 0 twice: 1 -> 2 -> 3
-        engine.processMove(new MoveRequestDTO(1, 0, Island.ISABELA), player1Handler); // P1: worker0 = lvl 2
-        engine.processMove(new MoveRequestDTO(2, 0, Island.ISABELA), player2Handler); // P2
-        engine.processMove(new MoveRequestDTO(1, 0, Island.ISABELA), player1Handler); // P1: worker0 = lvl 3
-        engine.processMove(new MoveRequestDTO(2, 0, Island.ISABELA), player2Handler); // P2
-        engine.processMove(new MoveRequestDTO(1, 0, Island.ISABELA), player1Handler); // P1: worker0 = still 3 (capped)
+        engine.processMove(new MoveRequestDTO(1, 0, Island.ISABELA)); // P1: worker0 = lvl 2
+        engine.processMove(new MoveRequestDTO(2, 0, Island.ISABELA)); // P2
+        engine.processMove(new MoveRequestDTO(1, 0, Island.ISABELA)); // P1: worker0 = lvl 3
+        engine.processMove(new MoveRequestDTO(2, 0, Island.ISABELA)); // P2
+        engine.processMove(new MoveRequestDTO(1, 0, Island.ISABELA)); // P1: worker0 = still 3 (capped)
 
         assertEquals(3, engine.getCurrentState().player1().worker0().level(),
                 "Worker should cap at level 3");
     }
 
     @Test
-    void differentIslandsRewardCorrespondingTracks() {
+    void differentIslandsRewardCorrespondingTracks() throws InvalidMoveException {
         // Both players go to Isabela (Botany) first to level up
-        engine.processMove(new MoveRequestDTO(1, 0, Island.ISABELA), player1Handler);
-        engine.processMove(new MoveRequestDTO(2, 0, Island.ISABELA), player2Handler);
+        engine.processMove(new MoveRequestDTO(1, 0, Island.ISABELA));
+        engine.processMove(new MoveRequestDTO(2, 0, Island.ISABELA));
 
         // Both should have 1 Botany
         assertEquals(1, engine.getCurrentState().player1().botany(), "P1 Isabela = Botany");
@@ -199,13 +158,13 @@ class GameEngineTest {
     }
 
     @Test
-    void workerLevelingUpUnlocksHigherIslands() {
+    void workerLevelingUpUnlocksHigherIslands() throws InvalidMoveException {
         // Round 1: P1 and P2 both go Isabela (level up to 2)
-        engine.processMove(new MoveRequestDTO(1, 0, Island.ISABELA), player1Handler);
-        engine.processMove(new MoveRequestDTO(2, 0, Island.ISABELA), player2Handler);
+        engine.processMove(new MoveRequestDTO(1, 0, Island.ISABELA));
+        engine.processMove(new MoveRequestDTO(2, 0, Island.ISABELA));
 
         // Round 2: P1 goes Santa Cruz (worker now level 2, can access)
-        engine.processMove(new MoveRequestDTO(1, 0, Island.SANTA_CRUZ), player1Handler);
+        engine.processMove(new MoveRequestDTO(1, 0, Island.SANTA_CRUZ));
 
         // P1 should have 1 Botany (Isabela) and 1 Zoology (Santa Cruz)
         assertEquals(1, engine.getCurrentState().player1().botany(), "Isabela = Botany");
@@ -215,29 +174,51 @@ class GameEngineTest {
     // === Win Condition Tests ===
 
     @Test
-    void reaching5OnBotanyWins() {
+    void reaching5OnBotanyWins() throws InvalidMoveException {
         // Player 1 gets to 5 Botany by repeatedly sending worker to Isabela
         // Each trip to Isabela = +1 Botany
         for (int i = 0; i < 5; i++) {
-            engine.processMove(new MoveRequestDTO(1, 0, Island.ISABELA), player1Handler);
-            engine.processMove(new MoveRequestDTO(2, 0, Island.ISABELA), player2Handler);
+            engine.processMove(new MoveRequestDTO(1, 0, Island.ISABELA));
+            // After P1's 5th move, the game is won — skip P2's move
+            if (engine.getCurrentState().winnerId() != 0) {
+                break;
+            }
+            engine.processMove(new MoveRequestDTO(2, 0, Island.ISABELA));
         }
 
         assertEquals(1, engine.getCurrentState().winnerId(),
                 "Player 1 should win by reaching 5 Botany");
-        assertEquals(1, engine.getCurrentState().activePlayerId(),
-                "Active player should be 1 after P2's last move (it's P1's turn)");
+        assertEquals(2, engine.getCurrentState().activePlayerId(),
+                "Active player should be 2 after P1's winning move");
     }
 
     @Test
-    void noWinnerBeforeLevel5() {
+    void noWinnerBeforeLevel5() throws InvalidMoveException {
         // Do a few moves but not enough to win
-        engine.processMove(new MoveRequestDTO(1, 0, Island.ISABELA), player1Handler);
-        engine.processMove(new MoveRequestDTO(2, 0, Island.ISABELA), player2Handler);
-        engine.processMove(new MoveRequestDTO(1, 0, Island.ISABELA), player1Handler);
+        engine.processMove(new MoveRequestDTO(1, 0, Island.ISABELA));
+        engine.processMove(new MoveRequestDTO(2, 0, Island.ISABELA));
+        engine.processMove(new MoveRequestDTO(1, 0, Island.ISABELA));
 
         assertEquals(0, engine.getCurrentState().winnerId(),
                 "No winner until someone reaches 5");
+    }
+
+    @Test
+    void gameOverRejectsFurtherMoves() throws InvalidMoveException {
+        // Play until Player 1 wins
+        for (int i = 0; i < 5; i++) {
+            engine.processMove(new MoveRequestDTO(1, 0, Island.ISABELA));
+            if (engine.getCurrentState().winnerId() != 0) {
+                break;
+            }
+            engine.processMove(new MoveRequestDTO(2, 0, Island.ISABELA));
+        }
+
+        // Any further move should throw
+        InvalidMoveException ex = assertThrows(InvalidMoveException.class,
+                () -> engine.processMove(new MoveRequestDTO(1, 0, Island.ISABELA)));
+
+        assertEquals("The game is already over!", ex.getMessage());
     }
 
     // Note: Player 2 cannot win when Player 1 goes first in our turn-based game.

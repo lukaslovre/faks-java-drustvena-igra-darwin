@@ -1,12 +1,11 @@
 package hr.tvz.darwin.server.core;
 
-import hr.tvz.darwin.server.network.ClientHandler;
-import hr.tvz.darwin.server.network.TcpServer;
 import hr.tvz.darwin.shared.Track;
 import hr.tvz.darwin.shared.dto.*;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * The Brain of the server — validates moves and manages game state.
@@ -35,9 +34,10 @@ public class GameEngine {
     private GameStateDTO currentState;
 
     /**
-     * Reference back to TcpServer so we can broadcast state changes.
+     * Callback invoked after every valid move with the new game state.
+     * The network layer subscribes to this to broadcast state changes.
      */
-    private TcpServer server;
+    private Consumer<GameStateDTO> onStateChanged;
 
     /**
      * Total samples collected across all games (for RMI Darwin Archive).
@@ -59,10 +59,11 @@ public class GameEngine {
     }
 
     /**
-     * Sets the server reference so the engine can broadcast to all clients.
+     * Registers a callback to be notified when the game state changes.
+     * This decouples the domain layer from the network layer.
      */
-    public void setServer(TcpServer server) {
-        this.server = server;
+    public void setOnStateChanged(Consumer<GameStateDTO> onStateChanged) {
+        this.onStateChanged = onStateChanged;
     }
 
     /**
@@ -108,35 +109,31 @@ public class GameEngine {
      * at a time, preventing memory corruption.
      *
      * @param request The move request from a client
-     * @param sender  The ClientHandler that sent this (to send errors back)
+     * @throws InvalidMoveException if the move violates game rules
      */
-    public synchronized void processMove(MoveRequestDTO request, ClientHandler sender) {
+    public synchronized void processMove(MoveRequestDTO request) throws InvalidMoveException {
         // If game over don't process further requests
         if (currentState.winnerId() != 0) {
-            sender.send(new ErrorDTO("The game is already over!"));
-            return;
+            throw new InvalidMoveException("The game is already over!");
         }
 
         // 1. TURN VALIDATION: Is it this player's turn?
         // If Player 1 sends a move but it's Player 2's turn, reject it.
         if (request.playerId() != getActivePlayerId()) {
-            sender.send(new ErrorDTO("It is not your turn!"));
-            return;
+            throw new InvalidMoveException("It is not your turn!");
         }
 
         // 2. WORKER VALIDATION: Get the worker's current level from state
         WorkerDTO worker = getWorker(request.playerId(), request.workerId());
         if (worker == null) {
-            sender.send(new ErrorDTO("Invalid worker ID."));
-            return;
+            throw new InvalidMoveException("Invalid worker ID.");
         }
 
         // 3. ISLAND VALIDATION: Can this worker level reach this island?
         // Island.requiredLevel is the minimum level needed to perform the action.
         if (worker.level() < request.targetIsland().requiredLevel) {
-            sender.send(new ErrorDTO("Worker level too low for this island! Required: "
-                    + request.targetIsland().requiredLevel + ", Your level: " + worker.level()));
-            return;
+            throw new InvalidMoveException("Worker level too low for this island! Required: "
+                    + request.targetIsland().requiredLevel + ", Your level: " + worker.level());
         }
 
         // 4. UPDATE STATE: Create a new GameStateDTO with the changes applied
@@ -154,9 +151,9 @@ public class GameEngine {
             // XML logging will be triggered here in Phase 6
         }
 
-        // 6. BROADCAST: Send the new state to ALL connected clients
-        if (server != null) {
-            server.broadcast(currentState);
+        // 6. CALLBACK: Notify the network layer of the state change
+        if (onStateChanged != null) {
+            onStateChanged.accept(currentState);
         }
     }
 
