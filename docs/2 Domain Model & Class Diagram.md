@@ -98,29 +98,32 @@ switch (payload) {
 }
 ```
 
-## 4. Derived State, Turn Management & Synchronization
-The Server does not store a `currentTurn` variable. Instead, it maintains a `List<MoveRequestDTO> moveHistory`. This list acts as the data source for the XML Logger and mathematically determines whose turn it is. 
+## 4. Turn Management, State Visibility & Synchronization
+The Server does not store a `currentTurn` variable. Instead, each `GameStateDTO` tracks `activePlayerId` in the immutable snapshot. The `processMove` method narrows its `synchronized` block to protect only memory mutation (not network I/O), and `currentState` is marked `volatile` for cross-thread visibility.
 
-To satisfy **Ishod 4 (Synchronization)**, the `processMove` method uses the `synchronized` keyword. This guarantees that if Player 1 and Player 2 send a network payload at the exact same millisecond, the Server will process them sequentially, preventing array corruption or race conditions.
-
+To satisfy **Ishod 4 (Synchronization)**:
 ```java
 public class GameEngine {
     private final List<MoveRequestDTO> moveHistory = new ArrayList<>();
-    private GameStateDTO currentState; // Updated after every valid move
+    private volatile GameStateDTO currentState; // volatile = cross-thread visibility
 
-    // Derived Turn Logic
+    // Reads from the immutable state object (true Redux pattern)
     public int getActivePlayerId() {
-        // If 0 moves have been made, it's Player 1's turn (Even = P1, Odd = P2)
-        return (moveHistory.size() % 2 == 0) ? 1 : 2;
+        return currentState.activePlayerId();
     }
 
-    // SYNCHRONIZATION: Prevents race conditions from multi-threaded TCP ClientHandlers
-    public synchronized void processMove(MoveRequestDTO request) throws InvalidMoveException {
-        if (request.playerId() != getActivePlayerId()) {
-            throw new InvalidMoveException("It is not your turn!");
+    // Narrow synchronized block — only protects memory, not I/O
+    public void processMove(MoveRequestDTO request) throws InvalidMoveException {
+        GameStateDTO stateToBroadcast;
+        synchronized (this) {
+            if (request.playerId() != getActivePlayerId()) {
+                throw new InvalidMoveException("It is not your turn!");
+            }
+            // ... validate, update state, add to history ...
+            stateToBroadcast = currentState; // capture for callback
         }
-        // ... validate worker level against Island enum ...
-        // ... update state, add to history ...
+        // Callback outside lock — network I/O must never block the engine
+        if (onStateChanged != null) onStateChanged.accept(stateToBroadcast);
     }
 }
 ```

@@ -4,7 +4,9 @@ import hr.tvz.darwin.shared.Track;
 import hr.tvz.darwin.shared.dto.*;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 /**
@@ -30,8 +32,11 @@ public class GameEngine {
 
     /**
      * The authoritative game state — broadcast to all clients after every move.
+     * volatile ensures cross-thread visibility: when one thread updates the
+     * reference inside a synchronized block, other threads see the new value
+     * immediately (no stale CPU cache reads).
      */
-    private GameStateDTO currentState;
+    private volatile GameStateDTO currentState;
 
     /**
      * Callback invoked after every valid move with the new game state.
@@ -41,13 +46,16 @@ public class GameEngine {
 
     /**
      * Total samples collected across all games (for RMI Darwin Archive).
+     * AtomicInteger handles cross-instance thread safety without needing
+     * a static synchronized lock. Two GameEngine instances can safely
+     * increment these counters in parallel.
      */
-    private static int totalGlobalSamples = 0;
+    private static final AtomicInteger totalGlobalSamples = new AtomicInteger(0);
 
     /**
      * Total games played on this server (for RMI Darwin Archive).
      */
-    private static int totalGamesPlayed = 0;
+    private static final AtomicInteger totalGamesPlayed = new AtomicInteger(0);
 
     /**
      * Win condition: first player to reach this level on any track wins.
@@ -85,12 +93,13 @@ public class GameEngine {
     }
 
     /**
-     * Returns which player's turn it is based on moveHistory size.
-     * Even number of moves → Player 1's turn (moves.size() % 2 == 0)
-     * Odd number of moves  → Player 2's turn
+     * Returns which player's turn it is.
+     * Reads directly from the immutable GameStateDTO (which tracks activePlayerId
+     * after every state transition) rather than deriving it from moveHistory size.
+     * This is a true Redux pattern — the state object IS the source of truth.
      */
     public int getActivePlayerId() {
-        return (moveHistory.size() % 2 == 0) ? 1 : 2;
+        return currentState.activePlayerId();
     }
 
     /**
@@ -101,59 +110,81 @@ public class GameEngine {
     }
 
     /**
-     * THE MAIN GAME LOGIC — synchronized to prevent race conditions.
+     * Returns an unmodifiable snapshot of the move history.
+     * Used by DomXmlWriter (Phase 6) to generate XML replay files.
      * <p>
-     * Java synchronized acts like a mutex lock. If Thread A (Player 1)
-     * is inside this method, Thread B (Player 2) must wait outside until
-     * Thread A finishes. This ensures only one thread modifies currentState
-     * at a time, preventing memory corruption.
+     * DEFENSIVE COPY:
+     * We synchronize on 'this' to ensure we don't copy while a move is being
+     * added inside processMove(). The returned wrapper prevents the XML writer
+     * from accidentally mutating the server's source-of-truth list.
+     */
+    public List<MoveRequestDTO> getMoveHistory() {
+        synchronized (this) {
+            return Collections.unmodifiableList(new ArrayList<>(moveHistory));
+        }
+    }
+
+    /**
+     * THE MAIN GAME LOGIC — validates and applies a move.
+     * <p>
+     * CONCURRENCY DESIGN (Ishod 4):
+     * The synchronized block is NARROWLY scoped to only protect memory mutation
+     * (state update, history append). The network callback onStateChanged is
+     * called OUTSIDE the lock. This prevents a slow network client from
+     * blocking the entire game engine (the "alien method" anti-pattern).
      *
      * @param request The move request from a client
      * @throws InvalidMoveException if the move violates game rules
      */
-    public synchronized void processMove(MoveRequestDTO request) throws InvalidMoveException {
-        // If game over don't process further requests
-        if (currentState.winnerId() != 0) {
-            throw new InvalidMoveException("The game is already over!");
+    public void processMove(MoveRequestDTO request) throws InvalidMoveException {
+        // Capture the new state reference to pass to the callback AFTER releasing the lock
+        GameStateDTO stateToBroadcast;
+
+        synchronized (this) {
+            // If game over don't process further requests
+            if (currentState.winnerId() != 0) {
+                throw new InvalidMoveException("The game is already over!");
+            }
+
+            // 1. TURN VALIDATION: Is it this player's turn?
+            if (request.playerId() != getActivePlayerId()) {
+                throw new InvalidMoveException("It is not your turn!");
+            }
+
+            // 2. WORKER VALIDATION: Get the worker's current level from state
+            WorkerDTO worker = getWorker(request.playerId(), request.workerId());
+            if (worker == null) {
+                throw new InvalidMoveException("Invalid worker ID.");
+            }
+
+            // 3. ISLAND VALIDATION: Can this worker level reach this island?
+            if (worker.level() < request.targetIsland().requiredLevel) {
+                throw new InvalidMoveException("Worker level too low for this island! Required: "
+                        + request.targetIsland().requiredLevel + ", Your level: " + worker.level());
+            }
+
+            // 4. UPDATE STATE: Create a new GameStateDTO with the changes applied
+            currentState = generateNewState(currentState, request);
+            moveHistory.add(request);
+
+            // Capture the reference for broadcast outside the lock
+            stateToBroadcast = currentState;
+
+            // 5. WIN CONDITION CHECK: Did someone reach Level 5?
+            if (currentState.winnerId() != 0) {
+                // AtomicInteger is thread-safe across instances — no static lock needed
+                totalGamesPlayed.incrementAndGet();
+                totalGlobalSamples.addAndGet(calculateTotalSamples(currentState));
+                System.out.println("Game over! Winner: Player " + currentState.winnerId());
+                // XML logging will be triggered here in Phase 6
+            }
         }
 
-        // 1. TURN VALIDATION: Is it this player's turn?
-        // If Player 1 sends a move but it's Player 2's turn, reject it.
-        if (request.playerId() != getActivePlayerId()) {
-            throw new InvalidMoveException("It is not your turn!");
-        }
-
-        // 2. WORKER VALIDATION: Get the worker's current level from state
-        WorkerDTO worker = getWorker(request.playerId(), request.workerId());
-        if (worker == null) {
-            throw new InvalidMoveException("Invalid worker ID.");
-        }
-
-        // 3. ISLAND VALIDATION: Can this worker level reach this island?
-        // Island.requiredLevel is the minimum level needed to perform the action.
-        if (worker.level() < request.targetIsland().requiredLevel) {
-            throw new InvalidMoveException("Worker level too low for this island! Required: "
-                    + request.targetIsland().requiredLevel + ", Your level: " + worker.level());
-        }
-
-        // 4. UPDATE STATE: Create a new GameStateDTO with the changes applied
-        // This follows the immutable state pattern (like Redux reducers).
-        // We derive the NEW state from the OLD state rather than mutating.
-        currentState = generateNewState(currentState, request);
-        moveHistory.add(request);
-
-        // 5. WIN CONDITION CHECK: Did someone reach Level 5?
-        if (currentState.winnerId() != 0) {
-            // Game is over — increment global stats for Darwin Archive (RMI)
-            totalGamesPlayed++;
-            totalGlobalSamples += calculateTotalSamples(currentState);
-            System.out.println("Game over! Winner: Player " + currentState.winnerId());
-            // XML logging will be triggered here in Phase 6
-        }
-
-        // 6. CALLBACK: Notify the network layer of the state change
+        // 6. CALLBACK: Notify the network layer OUTSIDE the lock.
+        // Network I/O (socket writes) can block. Holding the lock during I/O
+        // would freeze the game engine.
         if (onStateChanged != null) {
-            onStateChanged.accept(currentState);
+            onStateChanged.accept(stateToBroadcast);
         }
     }
 
@@ -257,14 +288,14 @@ public class GameEngine {
      * Returns total global samples (for RMI).
      */
     public static int getTotalGlobalSamples() {
-        return totalGlobalSamples;
+        return totalGlobalSamples.get();
     }
 
     /**
      * Returns total games played (for RMI).
      */
     public static int getTotalGamesPlayed() {
-        return totalGamesPlayed;
+        return totalGamesPlayed.get();
     }
 
     /**
