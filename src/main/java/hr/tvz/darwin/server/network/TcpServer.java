@@ -9,6 +9,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Executors;
 
 /**
  * The Host — accepts TCP connections and assigns them to ClientHandlers.
@@ -19,11 +20,12 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * we're inside a Virtual Thread — it doesn't block the entire process,
  * just this thread. Other Virtual Threads can run while this one waits.
  * <p>
- * VIRTUAL THREADS (Java 21+ / 25):
- * Virtual Threads are lightweight threads (like `async` tasks in JS).
- * They cost almost zero memory, so we can create one per connected client
- * without exhausting resources. `Thread.ofVirtual().start(handler)` spawns
- * a new virtual thread that runs the ClientHandler's run() method.
+ * STRUCTURED CONCURRENCY (Java 25):
+ * Instead of "fire-and-forget" threads (`Thread.ofVirtual().start()`), we use
+ * `Executors.newVirtualThreadPerTaskExecutor()` inside a try-with-resources.
+ * This is the modern idiomatic approach: if the server crashes, the executor
+ * automatically shuts down all Virtual Threads, preventing memory leaks.
+ * Think of it like `Promise.all()` with proper cleanup in JS.
  * <p>
  * THREAD-SAFE CLIENT LIST:
  * CopyOnWriteArrayList is used instead of ArrayList because if Player 2
@@ -64,7 +66,13 @@ public class TcpServer {
      * connections are accepted.
      */
     public void start() {
-        try (ServerSocket serverSocket = new ServerSocket(PORT)) {
+        // STRUCTURED CONCURRENCY (Java 25 Idiomatic):
+        // try-with-resources manages BOTH the socket AND the Virtual Thread pool.
+        // If the server crashes, the executor automatically shuts down all client threads.
+        // This prevents memory leaks and zombie threads — "fire-and-forget" is an anti-pattern.
+        try (var serverSocket = new ServerSocket(PORT);
+             var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+
             System.out.println("Darwin's Journey Server started on port " + PORT + "...");
             System.out.println("Waiting for Player 1 to connect...");
 
@@ -86,7 +94,7 @@ public class TcpServer {
 
                 ClientHandler handler = new ClientHandler(socket, playerId, engine, this);
                 clients.add(handler);
-                Thread.ofVirtual().start(handler);
+                executor.submit(handler); // Executor manages the Virtual Thread lifecycle
             }
 
         } catch (IOException e) {

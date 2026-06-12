@@ -113,8 +113,10 @@ public class ClientHandler implements Runnable {
                 }
             }
 
-        } catch (Exception e) {
-            // Client disconnected — IOException is normal when client closes
+        } catch (Exception _) {
+            // Java 25: Unnamed Variable (_) — we intentionally don't use the exception object.
+            // This tells the compiler "I know an exception occurred, but I don't need it."
+            // Eliminates SonarQube warnings about unused variables.
             System.out.println("Player " + playerId + " disconnected.");
 
             // Tell the server to tear down the lobby

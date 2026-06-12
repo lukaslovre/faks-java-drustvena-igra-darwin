@@ -7,7 +7,7 @@ The TCP architecture uses persistent sockets. The connection remains open for th
 
 ### 1.1 The Handshake Phase
 1.  **Server Start:** The Server opens `ServerSocket` on port `8080` and waits.
-2.  **Client Connects:** Client A connects. The Server spawns a `ClientHandler` Virtual Thread.
+2.  **Client Connects:** Client A connects. The Server spawns a `ClientHandler` Virtual Thread via an `ExecutorService` (using `Executors.newVirtualThreadPerTaskExecutor()` for structured concurrency).
 3.  **Identification:** The Server immediately sends `WelcomeDTO(1)` to Client A. Client A disables its UI (waiting for Player 2).
 4.  **Game Start:** Client B connects. Server sends `WelcomeDTO(2)`. The Server then broadcasts the initial `GameStateDTO` to both clients. Client A's UI unlocks.
 
@@ -34,6 +34,7 @@ public record WelcomeDTO(int playerId) implements Serializable {
 
 // 2. Updated Game State (Added winnerId to handle End Game logic)
 // winnerId is 0 if the game is ongoing, 1 if P1 wins, 2 if P2 wins.
+// Compact constructor ensures fail-fast validation at creation time.
 public record GameStateDTO(
     PlayerStateDTO player1, 
     PlayerStateDTO player2,
@@ -42,6 +43,14 @@ public record GameStateDTO(
     MoveRequestDTO lastMove
 ) implements Serializable {
     @Serial private static final long serialVersionUID = 1L;
+
+    // Compact constructor — validates state can never be invalid
+    public GameStateDTO {
+        if (winnerId < 0 || winnerId > 2)
+            throw new IllegalArgumentException("winnerId must be 0, 1, or 2");
+        if (activePlayerId != 1 && activePlayerId != 2)
+            throw new IllegalArgumentException("activePlayerId must be 1 or 2");
+    }
 }
 
 // 3. Move Request

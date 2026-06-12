@@ -37,9 +37,11 @@ public class TcpClient {
                     onMessage.accept(payload);
                 }
             }
-        } catch (Exception e) {
+        } catch (Exception _) {
+            // Java 25: Unnamed Variable (_) — we intentionally ignore the exception.
+            // If running is false, we're shutting down normally, so errors are expected.
             if (running) {
-                System.err.println("TcpClient listener error: " + e.getMessage());
+                System.err.println("TcpClient: Connection lost unexpectedly.");
             }
         }
     }
@@ -62,8 +64,8 @@ public class TcpClient {
         running = false;
         try {
             if (socket != null) socket.close();
-        } catch (IOException e) {
-            // ignore
+        } catch (IOException _) {
+            // Java 25: Unnamed Variable (_) — intentionally ignored during disconnect.
         }
     }
 }

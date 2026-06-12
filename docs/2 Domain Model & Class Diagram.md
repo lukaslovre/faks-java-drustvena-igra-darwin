@@ -59,6 +59,7 @@ public record PlayerStateDTO(
 
 // The Master State Object
 // winnerId: 0 = ongoing, 1 = Player 1 wins, 2 = Player 2 wins
+// Compact constructor guarantees invalid state can never exist in memory
 public record GameStateDTO(
     PlayerStateDTO player1, 
     PlayerStateDTO player2,
@@ -67,6 +68,14 @@ public record GameStateDTO(
     MoveRequestDTO lastMove
 ) implements Serializable {
     @Serial private static final long serialVersionUID = 1L;
+
+    // Compact constructor — auto-fills parameters from record header
+    public GameStateDTO {
+        if (winnerId < 0 || winnerId > 2)
+            throw new IllegalArgumentException("winnerId must be 0, 1, or 2");
+        if (activePlayerId != 1 && activePlayerId != 2)
+            throw new IllegalArgumentException("activePlayerId must be 1 or 2");
+    }
 }
 ```
 

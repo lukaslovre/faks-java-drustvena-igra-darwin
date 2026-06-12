@@ -96,22 +96,21 @@ public class GameController implements Initializable {
                     disableIslandButtons();
                     chatHistoryArea.appendText("Connected as Player " + myPlayerId + ". Waiting for opponent...\n");
                 }
-                case GameStateDTO s -> {
+                // Java 25 Guard Clauses: 'when' keyword eliminates nested if/else chains
+                // The switch becomes 100% declarative - no early returns needed
+                case GameStateDTO s when s.lastMove() == null -> {
                     // Initial state from server — no move has been made yet
-                    if (s.lastMove() == null) {
-                        bindingHelper.updateProgressBars(myPlayerId == 1 ? s.player1() : s.player2());
-                        updateGamePhase(s);
-                        return;
-                    }
-
+                    bindingHelper.updateProgressBars(myPlayerId == 1 ? s.player1() : s.player2());
+                    updateGamePhase(s);
+                }
+                case GameStateDTO s when isAnimating -> {
                     // Safety guard: if an animation is still running, stash the latest
                     // state and skip. The animation callback will use pendingState instead
                     // of the original captured state, ensuring no intermediate state is lost.
-                    if (isAnimating) {
-                        pendingState = s;
-                        return;
-                    }
-
+                    pendingState = s;
+                }
+                case GameStateDTO s -> {
+                    // Normal animation flow: play the move and update UI on completion
                     isAnimating = true;
                     disableIslandButtons();
 
@@ -136,15 +135,18 @@ public class GameController implements Initializable {
                             }
                     );
                 }
+                case ErrorDTO e when e.errorMessage().contains("Opponent disconnected") -> {
+                    clientState = ClientState.GAME_OVER;
+                    disableIslandButtons();
+                    chatHistoryArea.appendText("[SERVER] " + e.errorMessage() + "\n");
+                }
+                case ErrorDTO e when clientState == ClientState.PLAYING -> {
+                    // If it's a normal validation error (e.g., "Worker level too low"),
+                    // release the optimistic lock and restore buttons so the user can try again.
+                    setButtonsEnabled(isMyTurn);
+                    chatHistoryArea.appendText("[SERVER] " + e.errorMessage() + "\n");
+                }
                 case ErrorDTO e -> {
-                    if (e.errorMessage().contains("Opponent disconnected")) {
-                        clientState = ClientState.GAME_OVER;
-                        disableIslandButtons();
-                    } else if (clientState == ClientState.PLAYING) {
-                        // If it's a normal validation error (e.g., "Worker level too low"),
-                        // release the optimistic lock and restore buttons so the user can try again.
-                        setButtonsEnabled(isMyTurn);
-                    }
                     chatHistoryArea.appendText("[SERVER] " + e.errorMessage() + "\n");
                 }
                 case ChatMessageDTO c -> {

@@ -272,7 +272,8 @@ public class GameEngine {
         return switch (workerId) {
             case 0 -> player.worker0();
             case 1 -> player.worker1();
-            default -> null;
+            // Java 25: Exhaustive switch — throw instead of returning null.
+            default -> throw new IllegalArgumentException("Invalid workerId: " + workerId);
         };
     }
 
