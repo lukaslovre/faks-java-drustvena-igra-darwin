@@ -67,11 +67,14 @@ public class GameController implements Initializable {
     private TcpClient tcpClient;
     private int myPlayerId = -1;
     private ClientState clientState = ClientState.DISCONNECTED;
-    // volatile: all reads/writes happen on the JavaFX thread via Platform.runLater, so
-    // volatile isn't strictly required. But it's defense-in-depth: if the architecture
-    // ever changes and isAnimating is touched from a different thread, volatile guarantees
-    // visibility (prevents JIT from caching a stale value in a register).
-    private volatile boolean isAnimating = false;
+
+    // Tracks if it is currently our turn based on the last valid GameStateDTO.
+    // Used to recover button state if the server rejects our move.
+    private boolean isMyTurn = false;
+
+    // Not volatile: Thread Confinement guarantees this is only ever read/written
+    // by the JavaFX Application Thread inside Platform.runLater().
+    private boolean isAnimating = false;
     private GameStateDTO pendingState = null;
 
     private static final Map<String, Island> BUTTON_TO_ISLAND = Map.of(
@@ -118,24 +121,29 @@ public class GameController implements Initializable {
                     double[] targetPos = bindingHelper.getIslandPosition(move.targetIsland());
                     WorkerDTO updatedWorker = getWorkerData(s, move.playerId(), move.workerId());
 
-                    // Play the turn animation; on completion, refresh UI with the latest
-                    // state (use pendingState if one was queued during animation)
+                    // Play the turn animation; on completion, refresh UI with the latest state.
+                    // Note: JavaFX Transitions guarantee the callback runs on the FX Thread,
+                    // so we do not need to wrap this in Platform.runLater().
                     animationHelper.playTurnAnimation(
                             movingWorker, targetPos[0], targetPos[1], updatedWorker.level(),
-                            () -> Platform.runLater(() -> {
+                            () -> {
                                 GameStateDTO stateToApply = (pendingState != null) ? pendingState : s;
                                 pendingState = null;
                                 bindingHelper.updateProgressBars(
                                         myPlayerId == 1 ? stateToApply.player1() : stateToApply.player2());
                                 updateGamePhase(stateToApply);
                                 isAnimating = false;
-                            })
+                            }
                     );
                 }
                 case ErrorDTO e -> {
                     if (e.errorMessage().contains("Opponent disconnected")) {
                         clientState = ClientState.GAME_OVER;
                         disableIslandButtons();
+                    } else if (clientState == ClientState.PLAYING) {
+                        // If it's a normal validation error (e.g., "Worker level too low"),
+                        // release the optimistic lock and restore buttons so the user can try again.
+                        setButtonsEnabled(isMyTurn);
                     }
                     chatHistoryArea.appendText("[SERVER] " + e.errorMessage() + "\n");
                 }
@@ -163,6 +171,10 @@ public class GameController implements Initializable {
         Button source = (Button) event.getSource();
         Island target = BUTTON_TO_ISLAND.get(source.getId());
         if (target == null) return;
+
+        // OPTIMISTIC LOCK: Disable buttons instantly to prevent double-clicks
+        // while waiting for the server to validate the move.
+        disableIslandButtons();
 
         tcpClient.send(new MoveRequestDTO(myPlayerId, 0, target));
         chatHistoryArea.appendText("Sent move: Worker 0 -> " + target.name() + "\n");
@@ -202,11 +214,13 @@ public class GameController implements Initializable {
     private void updateGamePhase(GameStateDTO s) {
         if (s.winnerId() != 0) {
             clientState = ClientState.GAME_OVER;
+            isMyTurn = false;
             disableIslandButtons();
             chatHistoryArea.appendText("GAME OVER! Player " + s.winnerId() + " wins!\n");
         } else {
             clientState = ClientState.PLAYING;
-            setButtonsEnabled(s.activePlayerId() == myPlayerId);
+            isMyTurn = (s.activePlayerId() == myPlayerId);
+            setButtonsEnabled(isMyTurn);
         }
     }
 }

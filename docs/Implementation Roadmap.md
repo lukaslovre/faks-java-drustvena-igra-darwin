@@ -41,7 +41,7 @@
 - [x] **Refactor BindingHelper (Coordinate Fix):** Remove the `updateWorkerPositions` logic from `BindingHelper`. Workers should permanently keep their `layoutX/Y` at their base, and we will only animate their `translateX/Y`.
 - [x] **Animation Choreography:** In `AnimationHelper`, create a sequence that chains animations together: Travel to Island $\rightarrow$ Change Color (Level Up) $\rightarrow$ Travel Back to Base.
 - [x] **Intercept State Updates:** In `GameController`, intercept incoming `GameStateDTO`s. Instead of instantly updating the UI, read `state.lastMove()`. Trigger the animation sequence first, and *only when it finishes*, update the Progress Bars and unlock the UI.
-- [x] **UI Locking:** Ensure that while an animation is playing, the Island buttons are temporarily disabled so players can't spam moves and break the visual sequence.
+- [x] **UI Locking:** Disable Island buttons *immediately* upon click to prevent network spam. Ensure buttons are correctly re-enabled if the server rejects the move and returns an `ErrorDTO`, or when the turn animation finishes.
 
 ### Phase 6: The "Side Quests" (XML & RMI)
 *These are isolated features. Do them last so they don't break the core game.*
