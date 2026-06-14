@@ -42,17 +42,49 @@
 - [x] **Animation Choreography:** In `AnimationHelper`, create a sequence that chains animations together: Travel to Island $\rightarrow$ Change Color (Level Up) $\rightarrow$ Travel Back to Base.
 - [x] **Intercept State Updates:** In `GameController`, intercept incoming `GameStateDTO`s. Instead of instantly updating the UI, read `state.lastMove()`. Trigger the animation sequence first, and *only when it finishes*, update the Progress Bars and unlock the UI.
 - [x] **UI Locking:** Disable Island buttons *immediately* upon click to prevent network spam. Ensure buttons are correctly re-enabled if the server rejects the move and returns an `ErrorDTO`, or when the turn animation finishes.
+- [ ] Add custom UI instead of basic shapes and unstyled things. So finalize UI.
 
-### Phase 6: The "Side Quests" (XML & RMI)
-*These are isolated features. Do them last so they don't break the core game.*
-- [ ] **XML XSD:** Write `replay.xsd`.
-- [ ] **XML DOM Writer (Server):** Write `DomXmlWriter.java`. Trigger it when a player reaches Level 5. Check if `replay.xml` generates correctly.
-- [ ] **XML SAX Reader (Client):** Write `SaxReplayParser.java` and the Producer-Consumer queue. Link it to a "Load Replay" button on the UI. (Boom, **Ishod 5** done).
-- [ ] **RMI Server:** Create `IDarwinArchive` and `DarwinArchiveImpl`. Bind it to JNDI on port 1099.
-- [ ] **RMI Client:** Add a "Global Stats" button to the UI. On click, do a JNDI lookup and fetch the stats. (Boom, **Ishod 3** RMI done).
+### Phase 6: The "Side Quests" (XML, RMI & Serialization)
+*These features are architecturally isolated. Implementing them in this order ensures you can test each feature instantly.*
+
+#### 1. Binary Serialization: "Save Game"
+- [ ] **Save Logic (Client-side):** Add a "Save Game" button to the Client UI. Write a utility class `BinarySerializer.java` that uses `ObjectOutputStream` to write the current `GameStateDTO` to a file named `savegame.bin` in a local directory.
+- [ ] **Load Logic (Client-side):** Add a "Load Game" button. It uses `ObjectInputStream` to read `savegame.bin` and passes the deserialized `GameStateDTO` to your `BindingHelper` to instantly update the UI.
+- [ ] **Test:** Play a turn $\rightarrow$ Save $\rightarrow$ Play another turn $\rightarrow$ Load. The game should jump back to the saved state.
+
+#### 2. XML Replay System - Part 1: Schema & Writing
+*We must define the schema and write the XML ledger from the Server before we can replay it.*
+- [ ] **XSD Schema:** Create `replay.xsd` in `src/main/resources/`. Define the strict types for `<Move>` attributes (e.g., checking that `playerId` is an integer).
+- [ ] **DOM Writer (Server-side):** Create `DomXmlWriter.java` in the server package. 
+    *   When the Server's `GameEngine` detects a game-over condition, pass the `moveHistory` list to this writer.
+    *   Use `DocumentBuilderFactory` to write a validated `match_replay.xml` file.
+- [ ] **Test:** Run a quick game to completion. Verify that `match_replay.xml` is successfully generated in your project root and that it matches the XSD schema.
+
+#### 3. XML Replay System - Part 2: Reading & Replaying
+*Now we parse the generated XML file on the Client and drive the UI animations.*
+- [ ] **SAX Parser (Client-side):** Create `SaxReplayParser.java` which extends `DefaultHandler`. Override `startElement` to capture each `<Move>` tag and push it into a Java `Queue<MoveRequestDTO>`.
+- [ ] **XSD Validation Helper:** Before parsing, use `SchemaFactory` to validate `match_replay.xml` against your `replay.xsd`.
+- [ ] **Replay Engine (Client-side):** Add a "Watch Replay" button on the UI.
+    *   When clicked, run the SAX Parser to populate the queue.
+    *   Spawn a Virtual Thread that pulls moves from the Queue one-by-one, calls `Platform.runLater()` to trigger your Phase 5 slide animations, and pauses (`Thread.sleep(1500)`) between each move.
+- [ ] **Test:** Click "Watch Replay" and watch your last game play itself back visually.
+
+#### 4. The Darwin Archive: RMI & JNDI 
+*Completely isolated from the game loop.*
+- [ ] **RMI Interface:** Create `IDarwinArchive.java` extending `Remote` in your `shared` package. Define methods like `getTotalGamesPlayed()`.
+- [ ] **RMI Implementation (Server-side):** Create `DarwinArchiveImpl.java` extending `UnicastRemoteObject`. It should read/write these simple counters to a local `global_stats.txt` file.
+- [ ] **JNDI Binding (Server-side):** On server startup, create the RMI registry on port `1099` and bind your implementation using JNDI:
+    ```java
+    Context ctx = new InitialContext();
+    ctx.rebind("rmi://localhost:1099/DarwinArchive", archiveService);
+    ```
+- [ ] **JNDI Lookup (Client-side):** Add a "Global Archive" tab or button on the Client UI. On click, spawn a background thread to look up the service and fetch the numbers:
+    ```java
+    IDarwinArchive archive = (IDarwinArchive) ctx.lookup("rmi://localhost:1099/DarwinArchive");
+    ```
+    Update the UI with the fetched statistics.
+- [ ] **Test:** Run a game to completion (which increments the server's counter). Click "Global Archive" on the client and verify that the stats fetch and display correctly.
 
 ### Phase 7: Final QA & Defense Prep
-- [ ] **Line Count Check:** Scan all files. If any file is >190 lines, extract a method into a new Helper class.
+- [ ] **Line Count Check:** Scan all files. If any file is >200 lines, extract a method into a new Helper class.
 - [ ] **SonarQube Sweep:** Look at SonarLint warnings. Fix any remaining code smells.
-- [ ] **Network Test:** Run the Server on your laptop. Run Client A on your laptop. Find a second PC (or a friend's laptop), connect to the same Wi-Fi, change `localhost` to your laptop's IP address, and run Client B. *This is exactly how you will demonstrate it to the professor.*
-- [ ] **Git Check:** Ensure you have at least 15-20 commits with meaningful messages (e.g., "Added SAX parser for replay", "Fixed UI thread crash").
