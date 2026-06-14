@@ -1,0 +1,29 @@
+<!-- TODO: Why does this have MatchInfo? What if it had just Moves? -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+    <xs:element name="DarwinReplay">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="MatchInfo">
+                    <xs:complexType>
+                        <xs:attribute name="timestamp" type="xs:string" use="required"/>
+                        <xs:attribute name="winnerId" type="xs:integer" use="required"/>
+                    </xs:complexType>
+                </xs:element>
+                <xs:element name="Moves">
+                    <xs:complexType>
+                        <xs:sequence>
+                            <xs:element name="Move" maxOccurs="unbounded">
+                                <xs:complexType>
+                                    <xs:attribute name="turn" type="xs:integer" use="required"/>
+                                    <xs:attribute name="playerId" type="xs:integer" use="required"/>
+                                    <xs:attribute name="workerId" type="xs:integer" use="required"/>
+                                    <xs:attribute name="targetIsland" type="xs:string" use="required"/>
+                                </xs:complexType>
+                            </xs:element>
+                        </xs:sequence>
+                    </xs:complexType>
+                </xs:element>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+</xs:schema>

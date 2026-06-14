@@ -1,5 +1,6 @@
 package hr.tvz.darwin.server.network;
 
+import hr.tvz.darwin.server.DomXmlWriter;
 import hr.tvz.darwin.server.core.GameEngine;
 import hr.tvz.darwin.shared.dto.ErrorDTO;
 import hr.tvz.darwin.shared.dto.GameStateDTO;
@@ -57,7 +58,13 @@ public class TcpServer {
 
     public TcpServer() {
         this.engine = new GameEngine();
-        this.engine.setOnStateChanged(this::broadcast);
+        this.engine.setOnStateChanged(state -> {
+            broadcast(state);
+            // Save game state if game ended
+            if (state.winnerId() != 0) {
+                new DomXmlWriter().saveGame(engine.getMoveHistory(), state.winnerId());
+            }
+        });
     }
 
     /**
