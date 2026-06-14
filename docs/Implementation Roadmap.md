@@ -44,15 +44,9 @@
 - [x] **UI Locking:** Disable Island buttons *immediately* upon click to prevent network spam. Ensure buttons are correctly re-enabled if the server rejects the move and returns an `ErrorDTO`, or when the turn animation finishes.
 - [ ] Add custom UI instead of basic shapes and unstyled things. So finalize UI.
 
-### Phase 6: The "Side Quests" (XML, RMI & Serialization)
-*These features are architecturally isolated. Implementing them in this order ensures you can test each feature instantly.*
+### Phase 6: The "Side Quests" (XML & RMI)
 
-#### 1. Binary Serialization: "Save Game"
-- [ ] **Save Logic (Client-side):** Add a "Save Game" button to the Client UI. Write a utility class `BinarySerializer.java` that uses `ObjectOutputStream` to write the current `GameStateDTO` to a file named `savegame.bin` in a local directory.
-- [ ] **Load Logic (Client-side):** Add a "Load Game" button. It uses `ObjectInputStream` to read `savegame.bin` and passes the deserialized `GameStateDTO` to your `BindingHelper` to instantly update the UI.
-- [ ] **Test:** Play a turn $\rightarrow$ Save $\rightarrow$ Play another turn $\rightarrow$ Load. The game should jump back to the saved state.
-
-#### 2. XML Replay System - Part 1: Schema & Writing
+#### 1. XML Replay System - Part 1: Schema & Writing
 *We must define the schema and write the XML ledger from the Server before we can replay it.*
 - [ ] **XSD Schema:** Create `replay.xsd` in `src/main/resources/`. Define the strict types for `<Move>` attributes (e.g., checking that `playerId` is an integer).
 - [ ] **DOM Writer (Server-side):** Create `DomXmlWriter.java` in the server package. 
@@ -60,7 +54,7 @@
     *   Use `DocumentBuilderFactory` to write a validated `match_replay.xml` file.
 - [ ] **Test:** Run a quick game to completion. Verify that `match_replay.xml` is successfully generated in your project root and that it matches the XSD schema.
 
-#### 3. XML Replay System - Part 2: Reading & Replaying
+#### 2. XML Replay System - Part 2: Reading & Replaying
 *Now we parse the generated XML file on the Client and drive the UI animations.*
 - [ ] **SAX Parser (Client-side):** Create `SaxReplayParser.java` which extends `DefaultHandler`. Override `startElement` to capture each `<Move>` tag and push it into a Java `Queue<MoveRequestDTO>`.
 - [ ] **XSD Validation Helper:** Before parsing, use `SchemaFactory` to validate `match_replay.xml` against your `replay.xsd`.
@@ -69,7 +63,7 @@
     *   Spawn a Virtual Thread that pulls moves from the Queue one-by-one, calls `Platform.runLater()` to trigger your Phase 5 slide animations, and pauses (`Thread.sleep(1500)`) between each move.
 - [ ] **Test:** Click "Watch Replay" and watch your last game play itself back visually.
 
-#### 4. The Darwin Archive: RMI & JNDI 
+#### 3. The Darwin Archive: RMI & JNDI 
 *Completely isolated from the game loop.*
 - [ ] **RMI Interface:** Create `IDarwinArchive.java` extending `Remote` in your `shared` package. Define methods like `getTotalGamesPlayed()`.
 - [ ] **RMI Implementation (Server-side):** Create `DarwinArchiveImpl.java` extending `UnicastRemoteObject`. It should read/write these simple counters to a local `global_stats.txt` file.
