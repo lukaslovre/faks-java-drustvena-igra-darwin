@@ -48,8 +48,8 @@
 
 #### 1. XML Replay System - Part 1: Schema & Writing
 *We must define the schema and write the XML ledger from the Server before we can replay it.*
-- [ ] **XSD Schema:** Create `replay.xsd` in `src/main/resources/`. Define the strict types for `<Move>` attributes (e.g., checking that `playerId` is an integer).
-- [ ] **DOM Writer (Server-side):** Create `DomXmlWriter.java` in the server package. 
+- [x] **XSD Schema:** Create `replay.xsd` in `src/main/resources/`. Define the strict types for `<Move>` attributes (e.g., checking that `playerId` is an integer).
+- [x] **DOM Writer (Server-side):** Create `DomXmlWriter.java` in the server package. 
     *   When the Server's `GameEngine` detects a game-over condition, pass the `moveHistory` list to this writer.
     *   Use `DocumentBuilderFactory` to write a validated `match_replay.xml` file.
 - [ ] **Test:** Run a quick game to completion. Verify that `match_replay.xml` is successfully generated in your project root and that it matches the XSD schema.
