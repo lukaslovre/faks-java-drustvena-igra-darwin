@@ -1,4 +1,12 @@
-<!-- TODO: Why does this have MatchInfo? What if it had just Moves? -->
+<!--
+  Darwin's Journey Replay Schema (XSD)
+
+  Defines the strict structure for replay XML files written by DomXmlWriter.
+  The schema enforces:
+    - A <DarwinReplay> root with exactly 2 children: <MatchInfo> then <Moves>
+    - <Moves> contains zero or more <Move> elements, each with 4 integer/string attributes
+-->
+
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
     <xs:element name="DarwinReplay">
         <xs:complexType>
@@ -9,15 +17,27 @@
                         <xs:attribute name="winnerId" type="xs:integer" use="required"/>
                     </xs:complexType>
                 </xs:element>
+
+                <!-- <Moves> is a container. It MUST exist (no minOccurs="0"),
+                     but it MAY contain zero <Move> elements. -->
                 <xs:element name="Moves">
                     <xs:complexType>
                         <xs:sequence>
-                            <xs:element name="Move" maxOccurs="unbounded">
+                            <xs:element name="Move" minOccurs="0" maxOccurs="unbounded">
                                 <xs:complexType>
                                     <xs:attribute name="turn" type="xs:integer" use="required"/>
                                     <xs:attribute name="playerId" type="xs:integer" use="required"/>
                                     <xs:attribute name="workerId" type="xs:integer" use="required"/>
-                                    <xs:attribute name="targetIsland" type="xs:string" use="required"/>
+                                    <!-- targetIsland is an XSD enum restricted -->
+                                    <xs:attribute name="targetIsland" use="required">
+                                        <xs:simpleType>
+                                            <xs:restriction base="xs:string">
+                                                <xs:enumeration value="ISABELA"/>
+                                                <xs:enumeration value="SANTA_CRUZ"/>
+                                                <xs:enumeration value="SAN_CRISTOBAL"/>
+                                            </xs:restriction>
+                                        </xs:simpleType>
+                                    </xs:attribute>
                                 </xs:complexType>
                             </xs:element>
                         </xs:sequence>
