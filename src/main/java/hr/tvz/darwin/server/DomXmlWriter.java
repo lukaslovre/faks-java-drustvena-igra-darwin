@@ -3,6 +3,7 @@ package hr.tvz.darwin.server;
 import hr.tvz.darwin.shared.dto.MoveRequestDTO;
 
 import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.transform.OutputKeys;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
@@ -70,8 +71,10 @@ public class DomXmlWriter {
             String sanitized = timestamp.replace(":", "-");
             File outputFile = new File(replaysDir, "replay_" + sanitized + ".xml");
 
-            TransformerFactory.newInstance().newTransformer()
-                    .transform(new DOMSource(doc), new StreamResult(outputFile));
+            var transformer = TransformerFactory.newInstance().newTransformer();
+            transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+            transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "4");
+            transformer.transform(new DOMSource(doc), new StreamResult(outputFile));
 
             System.out.println("Replay saved: " + outputFile.getAbsolutePath());
 
