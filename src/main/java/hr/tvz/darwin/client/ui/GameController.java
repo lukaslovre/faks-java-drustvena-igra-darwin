@@ -3,6 +3,8 @@ package hr.tvz.darwin.client.ui;
 import hr.tvz.darwin.client.helpers.AnimationHelper;
 import hr.tvz.darwin.client.helpers.BindingHelper;
 import hr.tvz.darwin.client.network.TcpClient;
+import hr.tvz.darwin.client.replay.ReplayEngine;
+import hr.tvz.darwin.client.replay.SaxReplayParser;
 import hr.tvz.darwin.shared.Island;
 import hr.tvz.darwin.shared.dto.*;
 import javafx.application.Platform;
@@ -13,10 +15,14 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
+import javafx.stage.FileChooser;
 
+import java.io.File;
 import java.net.URL;
 import java.util.Map;
+import java.util.Queue;
 import java.util.ResourceBundle;
 
 public class GameController implements Initializable {
@@ -76,6 +82,8 @@ public class GameController implements Initializable {
     // by the JavaFX Application Thread inside Platform.runLater().
     private boolean isAnimating = false;
     private GameStateDTO pendingState = null;
+    private SaxReplayParser saxReplayParser;
+    private ReplayEngine replayEngine;
 
     private static final Map<String, Island> BUTTON_TO_ISLAND = Map.of(
             "islandIsabela", Island.ISABELA,
@@ -163,6 +171,11 @@ public class GameController implements Initializable {
                 botanyProgress, zoologyProgress, geologyProgress
         );
         animationHelper = new AnimationHelper();
+        saxReplayParser = new SaxReplayParser();
+        replayEngine = new ReplayEngine(animationHelper,
+                Map.of(1, Map.of(0, p1Worker0, 1, p1Worker1),
+                       2, Map.of(0, p2Worker0, 1, p2Worker1)),
+                island -> bindingHelper.getIslandPosition(island));
         disableIslandButtons();
         chatHistoryArea.appendText("Darwin's Journey — connecting to server...\n");
     }
@@ -224,5 +237,77 @@ public class GameController implements Initializable {
             isMyTurn = (s.activePlayerId() == myPlayerId);
             setButtonsEnabled(isMyTurn);
         }
+    }
+
+    @FXML
+    private void onWatchReplay() {
+        if (replayEngine.isRunning()) return; // prevent overlapping replays
+
+        // FileChooser is JavaFX's native OS file-picker dialog.
+        // showOpenDialog() blocks the FX thread until the user picks a file or
+        // cancels — similar to <input type="file"> + onChange in the browser.
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Select Replay File");
+        fileChooser.getExtensionFilters().add(
+                new FileChooser.ExtensionFilter("Replay XML", "*.xml"));
+        // Default folder: the replays/ directory where DomXmlWriter saves files.
+        fileChooser.setInitialDirectory(new File("replays"));
+
+        File file = fileChooser.showOpenDialog(chatHistoryArea.getScene().getWindow());
+        if (file == null) return; // user cancelled the dialog
+
+        try {
+            // SAX parse + XSD validation in one call — throws if the XML is
+            // malformed or fails schema validation (caught below).
+            Queue<MoveRequestDTO> moves = saxReplayParser.parse(file);
+            if (moves.isEmpty()) {
+                chatHistoryArea.appendText("[REPLAY] No moves found in file.\n");
+                return;
+            }
+
+            // Reset workers to their base layout positions and original fill
+            // colours. Animations use additive translateX/Y (via setByX/Y), so
+            // leftover transforms from a previous game/animation would cause
+            // drift.
+            resetWorkerPositions();
+
+            chatHistoryArea.appendText("[REPLAY] Starting replay of " + moves.size() + " moves...\n");
+            disableIslandButtons();
+
+            // startReplay runs on a Virtual Thread that sleeps 1.5 s between moves.
+            // onComplete runs on the FX thread (guaranteed by ReplayEngine via
+            // Platform.runLater), so it's safe to touch UI state here.
+            replayEngine.startReplay(moves, () -> {
+                chatHistoryArea.appendText("[REPLAY] Replay finished.\n");
+                if (clientState == ClientState.PLAYING) {
+                    setButtonsEnabled(isMyTurn); // restore buttons if game is still live
+                }
+            });
+        } catch (Exception e) {
+            // Catches XSD validation failures, IO errors, malformed XML, etc.
+            chatHistoryArea.appendText("[REPLAY ERROR] " + e.getMessage() + "\n");
+        }
+    }
+
+    /**
+     * Resets every worker's visual state to its FXML-defined baseline.
+     * <p>
+     * translateX/Y are the animated offsets on top of layoutX/Y — clearing
+     * them returns the Circle to the position declared in {@code Game.fxml}.
+     * Fill colour is also reset because {@link AnimationHelper} modifies it
+     * during the level-up sequence and never restores the original.
+     */
+    private void resetWorkerPositions() {
+        for (Circle c : new Circle[]{p1Worker0, p1Worker1, p2Worker0, p2Worker1}) {
+            c.setTranslateX(0);
+            c.setTranslateY(0);
+        }
+        // Restore the two player-colour schemes declared in the FXML.
+        // Color.web() parses a CSS hex string — JavaFX uses the same colour
+        // syntax as browsers: named colours ("DODGERBLUE") and hex ("#ff3d1f").
+        p1Worker0.setFill(Color.DODGERBLUE);
+        p1Worker1.setFill(Color.DODGERBLUE);
+        p2Worker0.setFill(Color.web("#ff3d1f"));
+        p2Worker1.setFill(Color.web("#ff3d1f"));
     }
 }

@@ -56,9 +56,9 @@
 
 #### 2. XML Replay System - Part 2: Reading & Replaying
 *Now we parse the generated XML file on the Client and drive the UI animations.*
-- [ ] **SAX Parser (Client-side):** Create `SaxReplayParser.java` which extends `DefaultHandler`. Override `startElement` to capture each `<Move>` tag and push it into a Java `Queue<MoveRequestDTO>`.
-- [ ] **XSD Validation Helper:** Before parsing, use `SchemaFactory` to validate `match_replay.xml` against your `replay.xsd`.
-- [ ] **Replay Engine (Client-side):** Add a "Watch Replay" button on the UI.
+- [x] **SAX Parser (Client-side):** Create `SaxReplayParser.java` which extends `DefaultHandler`. Override `startElement` to capture each `<Move>` tag and push it into a Java `Queue<MoveRequestDTO>`.
+- [x] **XSD Validation Helper:** Before parsing, use `SchemaFactory` to validate `match_replay.xml` against your `replay.xsd`.
+- [x] **Replay Engine (Client-side):** Add a "Watch Replay" button on the UI.
     *   When clicked, run the SAX Parser to populate the queue.
     *   Spawn a Virtual Thread that pulls moves from the Queue one-by-one, calls `Platform.runLater()` to trigger your Phase 5 slide animations, and pauses (`Thread.sleep(1500)`) between each move.
 - [ ] **Test:** Click "Watch Replay" and watch your last game play itself back visually.

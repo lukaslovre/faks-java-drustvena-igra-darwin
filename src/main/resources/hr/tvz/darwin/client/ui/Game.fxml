@@ -76,7 +76,7 @@
                 </Menu>
                 <Menu mnemonicParsing="false" text="Replay">
                     <items>
-                        <MenuItem mnemonicParsing="false" text="Delete"/>
+                        <MenuItem mnemonicParsing="false" onAction="#onWatchReplay" text="Watch Replay..."/>
                     </items>
                 </Menu>
             </menus>

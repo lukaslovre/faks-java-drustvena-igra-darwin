@@ -16,7 +16,7 @@ The developer is highly experienced in JavaScript/TypeScript but a beginner in J
 
 ## Critical Rules
 
-- **< 200 lines per class:** Strictly enforced. Extract logic into Helper/Utility classes if approaching the limit.
+- **< 200 lines per class**
 - **No external libraries:** Use only standard Java (`java.net`, `java.rmi`, `javax.xml`) and JavaFX. No Spring, Gson,
   Jackson, etc.
 - **SonarQube compliant:** Write clean code immediately (strict `private`/`public` access modifiers, no deep nesting,
