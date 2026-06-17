@@ -145,8 +145,8 @@ import java.rmi.Remote;
 import java.rmi.RemoteException;
 
 public interface IDarwinArchive extends Remote {
-    // Returns the total number of samples collected across all games ever played
-    int getTotalGlobalSamples() throws RemoteException;
+    // Returns the total number of research points collected across all games ever played
+    int getTotalGlobalResearchPoints() throws RemoteException;
     
     // Returns the total number of matches played on this server
     int getTotalGamesPlayed() throws RemoteException;

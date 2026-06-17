@@ -6,7 +6,6 @@ import hr.tvz.darwin.shared.dto.*;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 /**
@@ -43,19 +42,6 @@ public class GameEngine {
      * The network layer subscribes to this to broadcast state changes.
      */
     private Consumer<GameStateDTO> onStateChanged;
-
-    /**
-     * Total samples collected across all games (for RMI Darwin Archive).
-     * AtomicInteger handles cross-instance thread safety without needing
-     * a static synchronized lock. Two GameEngine instances can safely
-     * increment these counters in parallel.
-     */
-    private static final AtomicInteger totalGlobalSamples = new AtomicInteger(0);
-
-    /**
-     * Total games played on this server (for RMI Darwin Archive).
-     */
-    private static final AtomicInteger totalGamesPlayed = new AtomicInteger(0);
 
     /**
      * Win condition: first player to reach this level on any track wins.
@@ -172,11 +158,7 @@ public class GameEngine {
 
             // 5. WIN CONDITION CHECK: Did someone reach Level 5?
             if (currentState.winnerId() != 0) {
-                // AtomicInteger is thread-safe across instances — no static lock needed
-                totalGamesPlayed.incrementAndGet();
-                totalGlobalSamples.addAndGet(calculateTotalSamples(currentState));
                 System.out.println("Game over! Winner: Player " + currentState.winnerId());
-                // XML logging will be triggered here in Phase 6
             }
         }
 
@@ -275,28 +257,6 @@ public class GameEngine {
             // Java 25: Exhaustive switch — throw instead of returning null.
             default -> throw new IllegalArgumentException("Invalid workerId: " + workerId);
         };
-    }
-
-    /**
-     * Calculates total samples (sum of all track points) for RMI Darwin Archive.
-     */
-    private static int calculateTotalSamples(GameStateDTO state) {
-        return state.player1().botany() + state.player1().zoology() + state.player1().geology()
-                + state.player2().botany() + state.player2().zoology() + state.player2().geology();
-    }
-
-    /**
-     * Returns total global samples (for RMI).
-     */
-    public static int getTotalGlobalSamples() {
-        return totalGlobalSamples.get();
-    }
-
-    /**
-     * Returns total games played (for RMI).
-     */
-    public static int getTotalGamesPlayed() {
-        return totalGamesPlayed.get();
     }
 
     /**

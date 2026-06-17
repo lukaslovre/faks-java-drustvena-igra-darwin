@@ -1,13 +1,11 @@
 package hr.tvz.darwin.server;
 
 import hr.tvz.darwin.server.network.TcpServer;
+import hr.tvz.darwin.server.rmi.DarwinArchiveImpl;
 
-/**
- * Server entry point — launches the TCP server and RMI registry.
- * <p>
- * IMPORTANT: Both TCP (port 8080) and RMI (port 1099) are started here.
- * RMI will be fully implemented in Phase 6, but the skeleton is here.
- */
+import javax.naming.InitialContext;
+import java.rmi.registry.LocateRegistry;
+
 public class ServerApp {
 
     public static void main(String[] args) {
@@ -15,8 +13,22 @@ public class ServerApp {
         System.out.println("Darwin's Journey - Server Starting...");
         System.out.println("=".repeat(50));
 
-        // Start the TCP server (listens on port 8080)
-        // This call blocks — the server runs until you kill the process
+        try {
+            System.out.println("Starting RMI Registry and JNDI bindings...");
+
+            DarwinArchiveImpl archiveService = DarwinArchiveImpl.getInstance();
+            LocateRegistry.createRegistry(1099);
+
+            var ctx = new InitialContext();
+            ctx.rebind("rmi://localhost:1099/DarwinArchive", archiveService);
+
+            System.out.println("Darwin Archive service bound in JNDI.");
+        } catch (Exception e) {
+            System.err.println("CRITICAL: Failed to initialize RMI/JNDI services: " + e.getMessage());
+            e.printStackTrace();
+            System.exit(1);
+        }
+
         TcpServer server = new TcpServer();
         server.start();
 

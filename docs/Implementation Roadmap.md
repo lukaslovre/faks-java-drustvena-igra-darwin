@@ -65,14 +65,14 @@
 
 #### 3. The Darwin Archive: RMI & JNDI 
 *Completely isolated from the game loop.*
-- [ ] **RMI Interface:** Create `IDarwinArchive.java` extending `Remote` in your `shared` package. Define methods like `getTotalGamesPlayed()`.
-- [ ] **RMI Implementation (Server-side):** Create `DarwinArchiveImpl.java` extending `UnicastRemoteObject`. It should read/write these simple counters to a local `global_stats.txt` file.
-- [ ] **JNDI Binding (Server-side):** On server startup, create the RMI registry on port `1099` and bind your implementation using JNDI:
+- [x] **RMI Interface:** Create `IDarwinArchive.java` extending `Remote` in your `shared` package. Define methods like `getTotalGamesPlayed()`.
+- [x] **RMI Implementation (Server-side):** Create `DarwinArchiveImpl.java` extending `UnicastRemoteObject`. It should read/write these simple counters to a local `global_stats.txt` file.
+- [x] **JNDI Binding (Server-side):** On server startup, create the RMI registry on port `1099` and bind your implementation using JNDI:
     ```java
     Context ctx = new InitialContext();
     ctx.rebind("rmi://localhost:1099/DarwinArchive", archiveService);
     ```
-- [ ] **JNDI Lookup (Client-side):** Add a "Global Archive" tab or button on the Client UI. On click, spawn a background thread to look up the service and fetch the numbers:
+- [x] **JNDI Lookup (Client-side):** Add a "Global Archive" tab or button on the Client UI. On click, spawn a background thread to look up the service and fetch the numbers:
     ```java
     IDarwinArchive archive = (IDarwinArchive) ctx.lookup("rmi://localhost:1099/DarwinArchive");
     ```

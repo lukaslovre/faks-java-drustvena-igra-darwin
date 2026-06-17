@@ -71,7 +71,7 @@
                 </Menu>
                 <Menu mnemonicParsing="false" text="RMI/Global">
                     <items>
-                        <MenuItem mnemonicParsing="false" text="Close"/>
+                        <MenuItem mnemonicParsing="false" onAction="#onShowGlobalArchive" text="Show Global Archive..."/>
                     </items>
                 </Menu>
                 <Menu mnemonicParsing="false" text="Replay">

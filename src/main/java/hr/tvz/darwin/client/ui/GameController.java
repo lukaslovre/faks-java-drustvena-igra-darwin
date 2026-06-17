@@ -7,6 +7,7 @@ import hr.tvz.darwin.client.replay.ReplayEngine;
 import hr.tvz.darwin.client.replay.SaxReplayParser;
 import hr.tvz.darwin.shared.Island;
 import hr.tvz.darwin.shared.dto.*;
+import hr.tvz.darwin.shared.rmi.IDarwinArchive;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
@@ -19,6 +20,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import javafx.stage.FileChooser;
 
+import javax.naming.InitialContext;
 import java.io.File;
 import java.net.URL;
 import java.util.Map;
@@ -237,6 +239,27 @@ public class GameController implements Initializable {
             isMyTurn = (s.activePlayerId() == myPlayerId);
             setButtonsEnabled(isMyTurn);
         }
+    }
+
+    @FXML
+    private void onShowGlobalArchive() {
+        // TODO: Is it okay that this thread usage is "fire-and-forget"?
+        Thread.ofVirtual().start(() -> {
+            try {
+                var ctx = new InitialContext();
+                IDarwinArchive archive = (IDarwinArchive) ctx.lookup("rmi://localhost:1099/DarwinArchive");
+                int totalPoints = archive.getTotalGlobalResearchPoints();
+                int totalGames = archive.getTotalGamesPlayed();
+                Platform.runLater(() -> chatHistoryArea.appendText(
+                        "[ARCHIVE] Global Stats -> Games Played: " + totalGames
+                                + " | Total Research Points: " + totalPoints + "\n"
+                ));
+            } catch (Exception e) {
+                Platform.runLater(() -> chatHistoryArea.appendText(
+                        "[ARCHIVE ERROR] Could not retrieve archive stats: " + e.getMessage() + "\n"
+                ));
+            }
+        });
     }
 
     @FXML
