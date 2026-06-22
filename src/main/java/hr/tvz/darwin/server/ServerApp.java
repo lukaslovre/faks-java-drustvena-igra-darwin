@@ -12,6 +12,7 @@ public class ServerApp {
     private static final Logger LOGGER = Logger.getLogger(ServerApp.class.getName());
 
     public static void main(String[] args) {
+        LOGGER.fine(() -> "Startup arguments: " + String.join(" ", args));
         LOGGER.info("Darwin's Journey - Server Starting...");
 
         try {

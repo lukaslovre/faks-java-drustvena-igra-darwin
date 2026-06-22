@@ -24,6 +24,14 @@ import java.util.logging.Logger;
  * Designed as a Singleton — there should only ever be one archive instance
  * per JVM, bound in JNDI for remote clients to look up.
  */
+@SuppressWarnings({
+        // RemoteObject defines equality using remote references; replacing it
+        // with field equality would break the identity semantics expected by RMI.
+        "java:S2160",
+        // One JVM-wide archive is intentional: every completed game must update
+        // the same counters exposed through the single JNDI/RMI binding.
+        "java:S6548"
+})
 public class DarwinArchiveImpl extends UnicastRemoteObject implements IDarwinArchive {
 
     private static final Logger LOGGER = Logger.getLogger(DarwinArchiveImpl.class.getName());

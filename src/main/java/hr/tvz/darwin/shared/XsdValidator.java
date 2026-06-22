@@ -20,7 +20,7 @@ import java.io.InputStream;
 public class XsdValidator {
 
     private static final String XSD_RESOURCE = "replay.xsd";
-    private static volatile Schema cachedSchema;
+    private static Schema cachedSchema;
 
     private XsdValidator() {
         // Utility class: all behavior is exposed through static methods.
@@ -38,24 +38,20 @@ public class XsdValidator {
      * @throws IOException  if reading the .xsd resource from classpath fails
      * @throws IllegalStateException if replay.xsd is not found on the classpath
      */
-    public static Validator getValidator() throws SAXException, IOException {
+    public static synchronized Validator getValidator() throws SAXException, IOException {
         if (cachedSchema == null) {
-            synchronized (XsdValidator.class) {
-                if (cachedSchema == null) {
-                    SchemaFactory sf = SchemaFactory.newInstance(
-                            XMLConstants.W3C_XML_SCHEMA_NS_URI);
-                    sf.setProperty(XMLConstants.ACCESS_EXTERNAL_DTD, "");
-                    sf.setProperty(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
-                    try (InputStream xsdStream = XsdValidator.class
-                            .getClassLoader().getResourceAsStream(XSD_RESOURCE)) {
-                        if (xsdStream == null) {
-                            throw new IllegalStateException(
-                                    "Cannot find " + XSD_RESOURCE + " on classpath");
-                        }
-                        cachedSchema = sf.newSchema(
-                                new javax.xml.transform.stream.StreamSource(xsdStream));
-                    }
+            SchemaFactory sf = SchemaFactory.newInstance(
+                    XMLConstants.W3C_XML_SCHEMA_NS_URI);
+            sf.setProperty(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+            sf.setProperty(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
+            try (InputStream xsdStream = XsdValidator.class
+                    .getClassLoader().getResourceAsStream(XSD_RESOURCE)) {
+                if (xsdStream == null) {
+                    throw new IllegalStateException(
+                            "Cannot find " + XSD_RESOURCE + " on classpath");
                 }
+                cachedSchema = sf.newSchema(
+                        new javax.xml.transform.stream.StreamSource(xsdStream));
             }
         }
         Validator validator = cachedSchema.newValidator();

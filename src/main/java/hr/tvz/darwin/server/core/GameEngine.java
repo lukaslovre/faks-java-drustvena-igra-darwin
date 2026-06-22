@@ -18,9 +18,9 @@ public class GameEngine {
 
     private final List<MoveRequestDTO> moveHistory = new ArrayList<>();
 
-    // State is replaced, not mutated. volatile makes unsynchronized reads see
-    // the latest state published by processMove() or reset().
-    private volatile GameStateDTO currentState;
+    // Every access uses this engine's monitor, making each state snapshot visible
+    // across the client-handler threads without relying on volatile object state.
+    private GameStateDTO currentState;
     private Consumer<GameStateDTO> onStateChanged;
 
     public GameEngine() {
@@ -31,11 +31,11 @@ public class GameEngine {
         this.onStateChanged = onStateChanged;
     }
 
-    public int getActivePlayerId() {
+    public synchronized int getActivePlayerId() {
         return currentState.activePlayerId();
     }
 
-    public GameStateDTO getCurrentState() {
+    public synchronized GameStateDTO getCurrentState() {
         return currentState;
     }
 

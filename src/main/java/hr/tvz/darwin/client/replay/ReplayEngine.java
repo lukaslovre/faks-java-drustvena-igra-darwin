@@ -52,9 +52,9 @@ public class ReplayEngine {
             workerLevels.put("2-1", 1);
             Map<Track, Integer> research = new EnumMap<>(Track.class);
 
-            for (MoveRequestDTO move : moves) {
-                if (!running) break;
-
+            var moveIterator = moves.iterator();
+            while (running && moveIterator.hasNext()) {
+                MoveRequestDTO move = moveIterator.next();
                 String key = move.playerId() + "-" + move.workerId();
                 int currentLevel = workerLevels.getOrDefault(key, 1);
                 int newLevel = Math.min(currentLevel + 1, 3);

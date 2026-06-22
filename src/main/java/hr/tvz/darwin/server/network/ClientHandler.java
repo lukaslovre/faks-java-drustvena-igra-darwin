@@ -20,6 +20,7 @@ public class ClientHandler implements Runnable {
     private final int playerId;
     private final GameEngine engine;
     private final TcpServer server;
+    private volatile boolean running = true;
     private ObjectInputStream in;
     private ObjectOutputStream out;
 
@@ -53,8 +54,8 @@ public class ClientHandler implements Runnable {
                 LOGGER.info(PLAYER_PREFIX + "1 waiting for opponent...");
             }
 
-            // 2. THE INFINITE LISTENING LOOP — processes DTOs until disconnect
-            while (true) {
+            // Socket shutdown changes running and unblocks readObject().
+            while (running) {
                 // BLOCKS until client sends an object
                 Object payload = in.readObject();
                 switch (payload) {
@@ -69,6 +70,7 @@ public class ClientHandler implements Runnable {
             }
 
         } catch (Exception _) {
+            running = false;
             LOGGER.info(() -> PLAYER_PREFIX + playerId + " disconnected.");
             server.handleDisconnect();
         }
@@ -101,6 +103,7 @@ public class ClientHandler implements Runnable {
     }
 
     public void closeConnection() {
+        running = false;
         try {
             if (socket != null && !socket.isClosed()) {
                 socket.close();

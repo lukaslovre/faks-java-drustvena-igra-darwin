@@ -25,6 +25,8 @@ public class TcpServer {
     private final List<ClientHandler> clients = new CopyOnWriteArrayList<>();
     private final GameEngine engine;
     private final GameStateSerializer gameStateSerializer;
+    private volatile boolean running;
+    private ServerSocket serverSocket;
 
     public TcpServer() {
         this.engine = new GameEngine();
@@ -52,15 +54,19 @@ public class TcpServer {
 
     /** Accepts at most two players for the active match. */
     public void start() {
+        running = true;
         // try-with-resources closes the socket and executor when start() exits.
-        try (var serverSocket = new ServerSocket(PORT);
+        try (var listeningSocket = new ServerSocket(PORT);
              var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            synchronized (this) {
+                serverSocket = listeningSocket;
+            }
 
             LOGGER.info(() -> "Darwin's Journey Server started on port " + PORT + "...");
             LOGGER.info("Waiting for Player 1 to connect...");
 
-            while (true) {
-                Socket socket = serverSocket.accept();
+            while (running) {
+                Socket socket = listeningSocket.accept();
 
                 if (clients.size() >= 2) {
                     LOGGER.info(() -> "Server full. Rejecting connection from "
@@ -79,7 +85,34 @@ public class TcpServer {
             }
 
         } catch (IOException e) {
-            LOGGER.log(Level.SEVERE, "Server error", e);
+            if (running) {
+                LOGGER.log(Level.SEVERE, "Server error", e);
+            }
+        } finally {
+            running = false;
+            synchronized (this) {
+                serverSocket = null;
+            }
+        }
+    }
+
+    /** Stops accepting clients by closing the socket that blocks in accept(). */
+    public void stop() {
+        running = false;
+        for (ClientHandler client : clients) {
+            client.closeConnection();
+        }
+        ServerSocket activeSocket;
+        synchronized (this) {
+            activeSocket = serverSocket;
+        }
+        if (activeSocket == null || activeSocket.isClosed()) {
+            return;
+        }
+        try {
+            activeSocket.close();
+        } catch (IOException e) {
+            LOGGER.log(Level.WARNING, "Could not close server socket", e);
         }
     }
 
