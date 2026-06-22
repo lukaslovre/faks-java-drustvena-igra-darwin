@@ -11,6 +11,8 @@ import java.net.Socket;
 
 /** Reads serialized DTOs for one client on its own virtual thread. */
 public class ClientHandler implements Runnable {
+    private static final String PLAYER_PREFIX = "Player ";
+
     private final Socket socket;
     private final int playerId;
     private final GameEngine engine;
@@ -38,14 +40,14 @@ public class ClientHandler implements Runnable {
         try {
             // 1. THE HANDSHAKE: Tell the client who they are
             send(new WelcomeDTO(playerId));
-            System.out.println("Sent WelcomeDTO to Player " + playerId);
+            System.out.println("Sent WelcomeDTO to " + PLAYER_PREFIX + playerId);
 
             // If this is Player 2, broadcast initial state to start the game
             if (playerId == 2) {
                 System.out.println("Both players connected! Broadcasting initial state...");
                 server.broadcast(engine.getCurrentState());
             } else {
-                System.out.println("Player 1 waiting for opponent...");
+                System.out.println(PLAYER_PREFIX + "1 waiting for opponent...");
             }
 
             // 2. THE INFINITE LISTENING LOOP — processes DTOs until disconnect
@@ -54,7 +56,7 @@ public class ClientHandler implements Runnable {
                 Object payload = in.readObject();
                 switch (payload) {
                     case MoveRequestDTO move -> {
-                        System.out.println("Player " + move.playerId() + " move request: Worker "
+                        System.out.println(PLAYER_PREFIX + move.playerId() + " move request: Worker "
                                 + move.workerId() + " -> " + move.targetIsland());
                         try {
                             engine.processMove(move);
@@ -63,7 +65,7 @@ public class ClientHandler implements Runnable {
                         }
                     }
                     case ChatMessageDTO chat -> {
-                        System.out.println("Player " + chat.playerId() + " chat: " + chat.message());
+                        System.out.println(PLAYER_PREFIX + chat.playerId() + " chat: " + chat.message());
                         server.broadcast(chat);
                     }
                     case null -> System.out.println("Received null payload");
@@ -72,7 +74,7 @@ public class ClientHandler implements Runnable {
             }
 
         } catch (Exception _) {
-            System.out.println("Player " + playerId + " disconnected.");
+            System.out.println(PLAYER_PREFIX + playerId + " disconnected.");
             server.handleDisconnect();
         }
     }
@@ -98,7 +100,7 @@ public class ClientHandler implements Runnable {
             if (socket != null && !socket.isClosed()) {
                 socket.close();
             }
-        } catch (IOException e) {
+        } catch (IOException _) {
             // The connection is already being discarded.
         }
     }

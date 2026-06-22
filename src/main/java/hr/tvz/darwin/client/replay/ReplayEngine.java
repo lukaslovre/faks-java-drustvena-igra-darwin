@@ -7,12 +7,13 @@ import hr.tvz.darwin.shared.dto.MoveRequestDTO;
 import javafx.application.Platform;
 import javafx.scene.shape.Circle;
 
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.CountDownLatch;
-import java.util.function.BiConsumer;
 import java.util.function.Function;
+import java.util.function.ObjIntConsumer;
 
 /**
  * Consumes parsed moves on a virtual thread. All scene graph access is posted
@@ -38,7 +39,7 @@ public class ReplayEngine {
 
     /** Starts one replay and posts its completion callback to the FX thread. */
     public void startReplay(Queue<MoveRequestDTO> moves, int localPlayerId,
-                            BiConsumer<Track, Integer> updateResearch,
+                            ObjIntConsumer<Track> updateResearch,
                             Runnable onComplete) {
         if (running) return;
         running = true;
@@ -49,7 +50,7 @@ public class ReplayEngine {
             workerLevels.put("1-1", 1);
             workerLevels.put("2-0", 1);
             workerLevels.put("2-1", 1);
-            Map<Track, Integer> research = new HashMap<>();
+            Map<Track, Integer> research = new EnumMap<>(Track.class);
 
             for (MoveRequestDTO move : moves) {
                 if (!running) break;
@@ -67,7 +68,7 @@ public class ReplayEngine {
                         animationHelper.playTurnAnimation(worker, pos[0], pos[1], newLevel,
                                 () -> finishMove(move, localPlayerId, research,
                                         updateResearch, animationFinished));
-                    } catch (RuntimeException exception) {
+                    } catch (RuntimeException _) {
                         animationFinished.countDown();
                     }
                 });
@@ -75,7 +76,7 @@ public class ReplayEngine {
                 try {
                     // Comparable to awaiting a Promise resolved by the FX animation callback.
                     animationFinished.await();
-                } catch (InterruptedException e) {
+                } catch (InterruptedException _) {
                     Thread.currentThread().interrupt();
                     break;
                 }
@@ -90,7 +91,7 @@ public class ReplayEngine {
 
     private void finishMove(MoveRequestDTO move, int localPlayerId,
                             Map<Track, Integer> research,
-                            BiConsumer<Track, Integer> updateResearch,
+                            ObjIntConsumer<Track> updateResearch,
                             CountDownLatch animationFinished) {
         try {
             if (move.playerId() == localPlayerId) {

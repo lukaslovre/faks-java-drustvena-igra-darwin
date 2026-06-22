@@ -22,6 +22,10 @@ public class XsdValidator {
     private static final String XSD_RESOURCE = "replay.xsd";
     private static volatile Schema cachedSchema;
 
+    private XsdValidator() {
+        // Utility class: all behavior is exposed through static methods.
+    }
+
     /**
      * Returns a Validator for the replay.xsd schema.
      * <p>

@@ -21,19 +21,29 @@ import java.util.Map;
 import java.util.ResourceBundle;
 
 public class GameController implements Initializable {
-
     private enum ClientState {DISCONNECTED, WAITING, PLAYING, GAME_OVER}
     private static final int DEFAULT_WORKER_ID = 0;
-
-    @FXML private ProgressBar botanyProgress, zoologyProgress, geologyProgress;
-    @FXML private Label botanyLabel, zoologyLabel, geologyLabel, statusLabel;
+    private static final String SERVER_PREFIX = "[SERVER] ";
+    @FXML private ProgressBar botanyProgress;
+    @FXML private ProgressBar zoologyProgress;
+    @FXML private ProgressBar geologyProgress;
+    @FXML private Label botanyLabel;
+    @FXML private Label zoologyLabel;
+    @FXML private Label geologyLabel;
+    @FXML private Label statusLabel;
     @FXML private TextArea chatHistoryArea;
     @FXML private TextField chatInputField;
-    @FXML private Button islandIsabela, islandSantaCruz, islandSanCristobal;
-    @FXML private Circle p1Worker0, p1Worker1, p2Worker0, p2Worker1;
-    @FXML private Label p1Worker0Label, p1Worker1Label, p2Worker0Label, p2Worker1Label;
-
-    private BindingHelper bindingHelper;
+    @FXML private Button islandIsabela;
+    @FXML private Button islandSantaCruz;
+    @FXML private Button islandSanCristobal;
+    @FXML private Circle p1Worker0;
+    @FXML private Circle p1Worker1;
+    @FXML private Circle p2Worker0;
+    @FXML private Circle p2Worker1;
+    @FXML private Label p1Worker0Label;
+    @FXML private Label p1Worker1Label;
+    @FXML private Label p2Worker0Label;
+    @FXML private Label p2Worker1Label;
     private TcpClient tcpClient;
     private ArchiveClient archiveClient;
     private ReplayUiCoordinator replayCoordinator;
@@ -41,16 +51,13 @@ public class GameController implements Initializable {
     private GameStatusView statusView;
     private int myPlayerId = -1;
     private ClientState clientState = ClientState.DISCONNECTED;
-
     // Needed to restore controls after the server rejects an optimistic move.
     private boolean isMyTurn = false;
-
     private static final Map<String, Island> BUTTON_TO_ISLAND = Map.of(
             "islandIsabela", Island.ISABELA,
             "islandSantaCruz", Island.SANTA_CRUZ,
             "islandSanCristobal", Island.SAN_CRISTOBAL
     );
-
     public void setTcpClient(TcpClient client) {
         this.tcpClient = client;
     }
@@ -71,18 +78,15 @@ public class GameController implements Initializable {
                     clientState = ClientState.GAME_OVER;
                     disableIslandButtons();
                     statusView.showOpponentDisconnected();
-                    chatHistoryArea.appendText("[SERVER] " + e.errorMessage() + "\n");
+                    chatHistoryArea.appendText(SERVER_PREFIX + e.errorMessage() + "\n");
                 }
                 case ErrorDTO e when clientState == ClientState.PLAYING -> {
                     setButtonsEnabled(isMyTurn);
-                    chatHistoryArea.appendText("[SERVER] " + e.errorMessage() + "\n");
+                    chatHistoryArea.appendText(SERVER_PREFIX + e.errorMessage() + "\n");
                 }
-                case ErrorDTO e -> {
-                    chatHistoryArea.appendText("[SERVER] " + e.errorMessage() + "\n");
-                }
-                case ChatMessageDTO c -> {
-                    chatHistoryArea.appendText("Player " + c.playerId() + ": " + c.message() + "\n");
-                }
+                case ErrorDTO e -> chatHistoryArea.appendText(SERVER_PREFIX + e.errorMessage() + "\n");
+                case ChatMessageDTO c -> chatHistoryArea.appendText(
+                        "Player " + c.playerId() + ": " + c.message() + "\n");
                 default -> chatHistoryArea.appendText("[UNKNOWN] " + dto.getClass().getSimpleName() + "\n");
             }
         });
@@ -90,7 +94,7 @@ public class GameController implements Initializable {
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        bindingHelper = new BindingHelper(
+        BindingHelper bindingHelper = new BindingHelper(
                 botanyProgress, zoologyProgress, geologyProgress,
                 Map.of(Track.BOTANY, botanyLabel, Track.ZOOLOGY, zoologyLabel, Track.GEOLOGY, geologyLabel)
         );

@@ -28,7 +28,7 @@ public class ClientApp extends Application {
             tcpClient.setOnMessage(controller::handleDTO);
             tcpClient.connect();
             controller.setTcpClient(tcpClient);
-        } catch (IOException e) {
+        } catch (IOException _) {
             Alert alert = new Alert(Alert.AlertType.ERROR);
             alert.setTitle("Connection Error");
             alert.setHeaderText("Could not connect to server.");

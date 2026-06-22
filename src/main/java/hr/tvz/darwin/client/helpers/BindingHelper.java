@@ -6,7 +6,7 @@ import hr.tvz.darwin.shared.dto.PlayerStateDTO;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
 
-import java.util.HashMap;
+import java.util.EnumMap;
 import java.util.Map;
 
 /** Maps authoritative state values and island positions to JavaFX controls. 
@@ -23,7 +23,7 @@ public class BindingHelper {
     private final ProgressBar geologyProgress;
     private final Map<Track, Label> trackLabels;
 
-    private final Map<Island, double[]> islandPositions = new HashMap<>();
+    private final Map<Island, double[]> islandPositions = new EnumMap<>(Island.class);
 
     public BindingHelper(ProgressBar botanyProgress, ProgressBar zoologyProgress,
                          ProgressBar geologyProgress, Map<Track, Label> trackLabels) {
@@ -69,7 +69,7 @@ public class BindingHelper {
     }
 
     private static double clampProgress(int value) {
-        return Math.max(0.0, Math.min(1.0, value / MAX_TRACK));
+        return Math.clamp(value / MAX_TRACK, 0.0, 1.0);
     }
 
     private void updateTrackLabels(int botany, int zoology, int geology) {
