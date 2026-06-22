@@ -29,7 +29,6 @@ public final class GameStateSerializer {
         Objects.requireNonNull(state);
         Files.createDirectories(savePath.getParent());
 
-        // Unlike JSON.stringify(), ObjectOutputStream preserves the complete typed DTO graph.
         try (var output = new ObjectOutputStream(Files.newOutputStream(savePath))) {
             output.writeObject(state);
         }

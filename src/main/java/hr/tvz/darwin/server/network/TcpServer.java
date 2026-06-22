@@ -14,51 +14,14 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 
-/**
- * The Host — accepts TCP connections and assigns them to ClientHandlers.
- * <p>
- * BLOCKING I/O:
- * The `serverSocket.accept()` call is BLOCKING. The code pauses entirely
- * until a client connects (like `await` in async JS). This is fine because
- * we're inside a Virtual Thread — it doesn't block the entire process,
- * just this thread. Other Virtual Threads can run while this one waits.
- * <p>
- * STRUCTURED CONCURRENCY (Java 25):
- * Instead of "fire-and-forget" threads (`Thread.ofVirtual().start()`), we use
- * `Executors.newVirtualThreadPerTaskExecutor()` inside a try-with-resources.
- * This is the modern idiomatic approach: if the server crashes, the executor
- * automatically shuts down all Virtual Threads, preventing memory leaks.
- * Think of it like `Promise.all()` with proper cleanup in JS.
- * <p>
- * THREAD-SAFE CLIENT LIST:
- * CopyOnWriteArrayList is used instead of ArrayList because if Player 2
- * disconnects while we're broadcasting to the list, an ArrayList would
- * throw ConcurrentModificationException. CopyOnWriteArrayList is designed
- * for exactly this scenario — safe iteration while others modify it.
- */
+/** Accepts TCP clients and assigns each connection to a virtual thread. */
 public class TcpServer {
-
-    /**
-     * Port where the TCP server listens for connections.
-     */
     private static final int PORT = 8080;
 
-    /**
-     * Thread-safe list of all connected client handlers.
-     */
+    // Broadcast iteration remains safe while a handler disconnects.
     private final List<ClientHandler> clients = new CopyOnWriteArrayList<>();
-
-    /**
-     * The game logic engine — validates moves and manages state.
-     */
     private final GameEngine engine;
-
     private final GameStateSerializer gameStateSerializer;
-
-    /**
-     * Flag to track if game has started (both players connected).
-     */
-    private boolean gameStarted = false;
 
     public TcpServer() {
         this.engine = new GameEngine();
@@ -84,41 +47,30 @@ public class TcpServer {
         }
     }
 
-    /**
-     * Starts the TCP server and waits for exactly 2 players to connect.
-     * Once both players are connected, the game begins and no more
-     * connections are accepted.
-     */
+    /** Accepts at most two players for the active match. */
     public void start() {
-        // STRUCTURED CONCURRENCY (Java 25 Idiomatic):
-        // try-with-resources manages BOTH the socket AND the Virtual Thread pool.
-        // If the server crashes, the executor automatically shuts down all client threads.
-        // This prevents memory leaks and zombie threads — "fire-and-forget" is an anti-pattern.
+        // try-with-resources closes the socket and executor when start() exits.
         try (var serverSocket = new ServerSocket(PORT);
              var executor = Executors.newVirtualThreadPerTaskExecutor()) {
 
             System.out.println("Darwin's Journey Server started on port " + PORT + "...");
             System.out.println("Waiting for Player 1 to connect...");
 
-            // INFINITE LOOP: The server stays alive forever here.
-            // serverSocket.accept() blocks the main thread until someone connects.
             while (true) {
                 Socket socket = serverSocket.accept();
 
-                // If we already have 2 players, reject the 3rd connection
                 if (clients.size() >= 2) {
                     System.out.println("Server full. Rejecting connection from " + socket.getRemoteSocketAddress());
                     socket.close();
-                    continue; // Go back to waiting
+                    continue;
                 }
 
-                // Determine Player ID safely (if list is empty -> 1, if size is 1 -> 2)
                 int playerId = clients.isEmpty() ? 1 : 2;
                 System.out.println("Player " + playerId + " connected from " + socket.getRemoteSocketAddress());
 
                 ClientHandler handler = new ClientHandler(socket, playerId, engine, this);
                 clients.add(handler);
-                executor.submit(handler); // Executor manages the Virtual Thread lifecycle
+                executor.submit(handler);
             }
 
         } catch (IOException e) {
@@ -128,17 +80,8 @@ public class TcpServer {
     }
 
     /**
-     * Broadcasts a message to ALL connected clients.
-     * Called by GameEngine after every valid move.
-     * <p>
-     * WHY SYNCHRONIZED?
-     * The `synchronized` here isn't strictly necessary since clients
-     * list is CopyOnWriteArrayList (already thread-safe for iteration).
-     * But it's a good defensive practice — it ensures that even if
-     * someone adds a new synchronization mechanism later, broadcast()
-     * remains safe. Think of it as belt-and-suspenders coding.
-     *
-     * @param payload The DTO to send to all clients (GameStateDTO, ChatMessageDTO, etc.)
+     * Sends one DTO to every client. Synchronization preserves a consistent
+     * message order when game-state and chat broadcasts originate concurrently.
      */
     public synchronized void broadcast(Object payload) {
         for (ClientHandler client : clients) {
@@ -171,7 +114,7 @@ public class TcpServer {
     }
 
     /**
-     * Returns the current game state (for testing purposes).
+     * Returns the current game state (for testing).
      */
     public GameStateDTO getCurrentState() {
         return engine.getCurrentState();

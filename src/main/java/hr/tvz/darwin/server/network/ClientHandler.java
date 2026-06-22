@@ -9,45 +9,13 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 
-/**
- * The Waiter — one per client, carries requests to the kitchen (GameEngine).
- *
- * VIRTUAL THREAD LIFECYCLE:
- * Each ClientHandler runs in its own Virtual Thread (created by TcpServer).
- * The run() method has an infinite loop that blocks on inputStream.readObject()
- * until data arrives from the client. This is similar to a JS async while(true)
- * loop with `await socket.recv()`.
- *
- * OBJECT STREAMS (Java Serialization vs JSON):
- * Unlike JS where you send JSON strings, Java sends raw objects over TCP.
- * ObjectOutputStream serializes objects to bytes (like JSON.stringify).
- * ObjectInputStream deserializes bytes back to objects (like JSON.parse).
- * Every object sent MUST implement Serializable (see DTO records).
- *
- * IMPORTANT: Output stream MUST be created BEFORE input stream in Java.
- * If you create input first, Java can deadlock waiting for the client to
- * send data while the client is waiting for your output. Always do:
- * 1. out = new ObjectOutputStream(socket.getOutputStream())
- * 2. in = new ObjectInputStream(socket.getInputStream())
- */
+/** Reads serialized DTOs for one client on its own virtual thread. */
 public class ClientHandler implements Runnable {
-
-    /** The TCP socket connected to this client. */
     private final Socket socket;
-
-    /** Which player this handler represents (1 or 2). */
     private final int playerId;
-
-    /** The game logic engine (the chef/kitchen). */
     private final GameEngine engine;
-
-    /** Reference back to TcpServer so we can broadcast chat messages. */
     private final TcpServer server;
-
-    /** Input stream — read DTOs sent by the client. */
     private ObjectInputStream in;
-
-    /** Output stream — send DTOs back to the client. */
     private ObjectOutputStream out;
 
     public ClientHandler(Socket socket, int playerId, GameEngine engine, TcpServer server) throws IOException {
@@ -56,22 +24,15 @@ public class ClientHandler implements Runnable {
         this.engine = engine;
         this.server = server;
 
-        // Only create streams if we have a real socket (null socket is allowed for testing)
         if (socket != null) {
-            // IMPORTANT: Create output FIRST, then input — prevents deadlock
+            // Both peers create output first; otherwise each input constructor can
+            // wait forever for the other side's serialization header.
             this.out = new ObjectOutputStream(socket.getOutputStream());
             this.in = new ObjectInputStream(socket.getInputStream());
         }
     }
 
-    /**
-     * The main loop — runs in a Virtual Thread until client disconnects.
-     *
-     * BLOCKING I/O:
-     * The `in.readObject()` call is blocking. This Virtual Thread sits idle
-     * (zero CPU usage) until the client sends a DTO. This is like `await fetch()`
-     * in JS — the thread sleeps until data arrives, then wakes up to process it.
-     */
+    /** The main loop — runs in a Virtual Thread until client disconnects. */
     @Override
     public void run() {
         try {
@@ -91,9 +52,6 @@ public class ClientHandler implements Runnable {
             while (true) {
                 // BLOCKS until client sends an object
                 Object payload = in.readObject();
-
-                // Java 25 Pattern Matching switch — like a JS switch on typeof/instanceof
-                // This routes different DTO types to different handlers
                 switch (payload) {
                     case MoveRequestDTO move -> {
                         System.out.println("Player " + move.playerId() + " move request: Worker "
@@ -106,7 +64,7 @@ public class ClientHandler implements Runnable {
                     }
                     case ChatMessageDTO chat -> {
                         System.out.println("Player " + chat.playerId() + " chat: " + chat.message());
-                        server.broadcast(chat);  // Broadcast to ALL clients including sender
+                        server.broadcast(chat);
                     }
                     case null -> System.out.println("Received null payload");
                     default -> System.out.println("Unknown payload type: " + payload.getClass().getName());
@@ -114,33 +72,12 @@ public class ClientHandler implements Runnable {
             }
 
         } catch (Exception _) {
-            // Java 25: Unnamed Variable (_) — we intentionally don't use the exception object.
-            // This tells the compiler "I know an exception occurred, but I don't need it."
-            // Eliminates SonarQube warnings about unused variables.
             System.out.println("Player " + playerId + " disconnected.");
-
-            // Tell the server to tear down the lobby
             server.handleDisconnect();
         }
     }
 
-    /**
-     * Sends a DTO to this client over TCP.
-     *
-     * WHY SYNCHRONIZED?
-     * If the GameEngine calls broadcast() while a ChatMessage is being sent,
-     * two threads might try to write to the same socket simultaneously.
-     * ObjectOutputStream is NOT thread-safe, so we synchronize access.
-     * This is like how you might use a mutex in JS to prevent concurrent writes.
-     *
-     * out.reset() IS CRITICAL:
-     * Java caches recently serialized objects. If you send the same object
-     * twice, Java might just send a reference instead of re-serializing it.
-     * reset() clears this cache so each send is a fresh serialization.
-     * Without this, clients might see stale/garbage data.
-     *
-     * @param payload The DTO to send (WelcomeDTO, GameStateDTO, ErrorDTO, etc.)
-     */
+    /** Serializes writes because ObjectOutputStream is not thread-safe. */
     public synchronized void send(Object payload) {
         // Guard: skip if no output stream (testing mode)
         if (out == null) {
@@ -149,7 +86,8 @@ public class ClientHandler implements Runnable {
         try {
             out.writeObject(payload);
             out.flush();
-            out.reset();  // Clear serialization cache — prevents stale references
+            // Forget prior object identities so each DTO graph is written afresh.
+            out.reset();
         } catch (IOException e) {
             System.err.println("Error sending to Player " + playerId + ": " + e.getMessage());
         }
@@ -161,7 +99,7 @@ public class ClientHandler implements Runnable {
                 socket.close();
             }
         } catch (IOException e) {
-            // Ignore, we are closing it anyway
+            // The connection is already being discarded.
         }
     }
 

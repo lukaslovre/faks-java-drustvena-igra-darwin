@@ -17,19 +17,12 @@ import java.util.List;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
-/**
- * Writes game move history to an XML file using DOM and validates against replay.xsd.
- */
+/** Builds a replay as a DOM tree, validates it, then writes it to disk. */
 public class DomXmlWriter {
 
     private static final String REPLAYS_DIR = "replays";
 
-    /**
-     * Builds, validates, and writes the replay XML file.
-     * <p>
-     * Called automatically when the game ends (winnerId != 0).
-     * Errors are logged but never thrown — the server keeps running.
-     */
+    /** Errors are logged rather than stopping the TCP server. */
     public void saveGame(List<MoveRequestDTO> moves, int winnerId) {
         try {
             // ── Step 1: Build the in-memory DOM tree ──────────────────────────
@@ -90,8 +83,7 @@ public class DomXmlWriter {
                 replaysDir.mkdirs();
             }
 
-            // Windows and Unix both forbid ':' in filenames. Since ISO 8601 timestamps
-            // contain colons (e.g. "2026-06-15T14:30:00Z"), we replace them with '-'.
+            // Colons in ISO timestamps are not valid in Windows filenames.
             String sanitizedTimestamp = timestamp.replace(":", "-");
             File outputFile = new File(replaysDir, "replay_" + sanitizedTimestamp + ".xml");
 
@@ -104,9 +96,6 @@ public class DomXmlWriter {
             System.out.println("Replay saved: " + outputFile.getAbsolutePath());
 
         } catch (Exception e) {
-            // Catch-all: DOM building, XSD validation, Transformer, or I/O could all fail.
-            // We log the error but NEVER throw — the game server must keep running.
-            // A failed XML write should not crash the server or interrupt the next game.
             System.err.println("Failed to write replay XML: " + e.getMessage());
             e.printStackTrace();
         }

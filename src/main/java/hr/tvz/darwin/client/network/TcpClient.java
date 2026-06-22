@@ -14,6 +14,8 @@ public class TcpClient {
     private ObjectOutputStream out;
     private ObjectInputStream in;
     private Consumer<Object> onMessage;
+
+    // disconnect() writes while the listener virtual thread reads this flag.
     private volatile boolean running;
 
     public TcpClient(String host, int port) {
@@ -23,6 +25,7 @@ public class TcpClient {
 
     public void connect() throws IOException {
         socket = new Socket(host, port);
+        // Match the server's output-before-input order to exchange stream headers.
         out = new ObjectOutputStream(socket.getOutputStream());
         in = new ObjectInputStream(socket.getInputStream());
         running = true;
@@ -38,8 +41,6 @@ public class TcpClient {
                 }
             }
         } catch (Exception _) {
-            // Java 25: Unnamed Variable (_) — we intentionally ignore the exception.
-            // If running is false, we're shutting down normally, so errors are expected.
             if (running) {
                 System.err.println("TcpClient: Connection lost unexpectedly.");
             }
@@ -65,7 +66,7 @@ public class TcpClient {
         try {
             if (socket != null) socket.close();
         } catch (IOException _) {
-            // Java 25: Unnamed Variable (_) — intentionally ignored during disconnect.
+            // Closing an already-failed connection needs no recovery.
         }
     }
 }

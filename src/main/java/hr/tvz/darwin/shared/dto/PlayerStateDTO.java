@@ -25,12 +25,6 @@ import java.io.Serializable;
  * Same reasoning — exactly 2 workers means no list needed.
  * A List would also require ArrayList serialization and add overhead.
  * Named fields are clearer and cheaper for our fixed-size game.
- * <p>
- * RECORDS AS BUILDING BLOCKS:
- * PlayerStateDTO contains two WorkerDTO records. This is COMPOSITION —
- * the same pattern as nesting objects in JS. Records compose naturally
- * because they're just regular objects under the hood, but with all the
- * auto-generated boilerplate (equals, hashCode, toString).
  */
 public record PlayerStateDTO(
         int botany,

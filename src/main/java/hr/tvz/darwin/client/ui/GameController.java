@@ -2,13 +2,12 @@ package hr.tvz.darwin.client.ui;
 
 import hr.tvz.darwin.client.helpers.AnimationHelper;
 import hr.tvz.darwin.client.helpers.BindingHelper;
+import hr.tvz.darwin.client.network.ArchiveClient;
 import hr.tvz.darwin.client.network.TcpClient;
-import hr.tvz.darwin.client.replay.ReplayEngine;
-import hr.tvz.darwin.client.replay.SaxReplayParser;
+import hr.tvz.darwin.client.replay.ReplayUiCoordinator;
 import hr.tvz.darwin.shared.Island;
 import hr.tvz.darwin.shared.ReflectionHelper;
 import hr.tvz.darwin.shared.dto.*;
-import hr.tvz.darwin.shared.rmi.IDarwinArchive;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
@@ -18,76 +17,39 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
-import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
-import javafx.stage.FileChooser;
 
-import javax.naming.InitialContext;
-import java.io.File;
 import java.net.URL;
 import java.util.Map;
-import java.util.Queue;
 import java.util.ResourceBundle;
 
 public class GameController implements Initializable {
 
     private enum ClientState {DISCONNECTED, WAITING, PLAYING, GAME_OVER}
 
-    @FXML
-    private ProgressBar botanyProgress;
-
-    @FXML
-    private ProgressBar zoologyProgress;
-
-    @FXML
-    private ProgressBar geologyProgress;
-
-    @FXML
-    private TextArea chatHistoryArea;
-
-    @FXML
-    private TextField chatInputField;
-
-    @FXML
-    private Button sendChatBtn;
-
-    @FXML
-    private Button islandIsabela;
-
-    @FXML
-    private Button islandSantaCruz;
-
-    @FXML
-    private Button islandSanCristobal;
-
-    @FXML
-    private Circle p1Worker0;
-
-    @FXML
-    private Circle p1Worker1;
-
-    @FXML
-    private Circle p2Worker0;
-
-    @FXML
-    private Circle p2Worker1;
+    @FXML private ProgressBar botanyProgress;
+    @FXML private ProgressBar zoologyProgress;
+    @FXML private ProgressBar geologyProgress;
+    @FXML private TextArea chatHistoryArea;
+    @FXML private TextField chatInputField;
+    @FXML private Button islandIsabela;
+    @FXML private Button islandSantaCruz;
+    @FXML private Button islandSanCristobal;
+    @FXML private Circle p1Worker0;
+    @FXML private Circle p1Worker1;
+    @FXML private Circle p2Worker0;
+    @FXML private Circle p2Worker1;
 
     private BindingHelper bindingHelper;
-    private AnimationHelper animationHelper;
     private TcpClient tcpClient;
+    private ArchiveClient archiveClient;
+    private ReplayUiCoordinator replayCoordinator;
+    private GameStatePresenter gameStatePresenter;
     private int myPlayerId = -1;
     private ClientState clientState = ClientState.DISCONNECTED;
 
-    // Tracks if it is currently our turn based on the last valid GameStateDTO.
-    // Used to recover button state if the server rejects our move.
+    // Needed to restore controls after the server rejects an optimistic move.
     private boolean isMyTurn = false;
-
-    // Not volatile: Thread Confinement guarantees this is only ever read/written
-    // by the JavaFX Application Thread inside Platform.runLater().
-    private boolean isAnimating = false;
-    private GameStateDTO pendingState = null;
-    private SaxReplayParser saxReplayParser;
-    private ReplayEngine replayEngine;
 
     private static final Map<String, Island> BUTTON_TO_ISLAND = Map.of(
             "islandIsabela", Island.ISABELA,
@@ -108,53 +70,14 @@ public class GameController implements Initializable {
                     disableIslandButtons();
                     chatHistoryArea.appendText("Connected as Player " + myPlayerId + ". Waiting for opponent...\n");
                 }
-                // Java 25 Guard Clauses: 'when' keyword eliminates nested if/else chains
-                // The switch becomes 100% declarative - no early returns needed
-                case GameStateDTO s when s.lastMove() == null -> {
-                    // Initial state from server — no move has been made yet
-                    bindingHelper.updateProgressBars(myPlayerId == 1 ? s.player1() : s.player2());
-                    updateGamePhase(s);
-                }
-                case GameStateDTO s when isAnimating -> {
-                    // Safety guard: if an animation is still running, stash the latest
-                    // state and skip. The animation callback will use pendingState instead
-                    // of the original captured state, ensuring no intermediate state is lost.
-                    pendingState = s;
-                }
-                case GameStateDTO s -> {
-                    // Normal animation flow: play the move and update UI on completion
-                    isAnimating = true;
-                    disableIslandButtons();
-
-                    // Extract move data from the state
-                    MoveRequestDTO move = s.lastMove();
-                    Circle movingWorker = getWorkerCircle(move.playerId(), move.workerId());
-                    double[] targetPos = bindingHelper.getIslandPosition(move.targetIsland());
-                    WorkerDTO updatedWorker = getWorkerData(s, move.playerId(), move.workerId());
-
-                    // Play the turn animation; on completion, refresh UI with the latest state.
-                    // Note: JavaFX Transitions guarantee the callback runs on the FX Thread,
-                    // so we do not need to wrap this in Platform.runLater().
-                    animationHelper.playTurnAnimation(
-                            movingWorker, targetPos[0], targetPos[1], updatedWorker.level(),
-                            () -> {
-                                GameStateDTO stateToApply = (pendingState != null) ? pendingState : s;
-                                pendingState = null;
-                                bindingHelper.updateProgressBars(
-                                        myPlayerId == 1 ? stateToApply.player1() : stateToApply.player2());
-                                updateGamePhase(stateToApply);
-                                isAnimating = false;
-                            }
-                    );
-                }
+                case GameStateDTO state -> gameStatePresenter.present(
+                        state, myPlayerId, this::updateGamePhase, this::disableIslandButtons);
                 case ErrorDTO e when e.errorMessage().contains("Opponent disconnected") -> {
                     clientState = ClientState.GAME_OVER;
                     disableIslandButtons();
                     chatHistoryArea.appendText("[SERVER] " + e.errorMessage() + "\n");
                 }
                 case ErrorDTO e when clientState == ClientState.PLAYING -> {
-                    // If it's a normal validation error (e.g., "Worker level too low"),
-                    // release the optimistic lock and restore buttons so the user can try again.
                     setButtonsEnabled(isMyTurn);
                     chatHistoryArea.appendText("[SERVER] " + e.errorMessage() + "\n");
                 }
@@ -174,11 +97,13 @@ public class GameController implements Initializable {
         bindingHelper = new BindingHelper(
                 botanyProgress, zoologyProgress, geologyProgress
         );
-        animationHelper = new AnimationHelper();
-        saxReplayParser = new SaxReplayParser();
-        replayEngine = new ReplayEngine(animationHelper,
-                Map.of(1, Map.of(0, p1Worker0, 1, p1Worker1),
-                       2, Map.of(0, p2Worker0, 1, p2Worker1)),
+        AnimationHelper animationHelper = new AnimationHelper();
+        Map<Integer, Map<Integer, Circle>> workers = Map.of(
+                1, Map.of(0, p1Worker0, 1, p1Worker1),
+                2, Map.of(0, p2Worker0, 1, p2Worker1));
+        archiveClient = new ArchiveClient();
+        gameStatePresenter = new GameStatePresenter(bindingHelper, animationHelper, workers);
+        replayCoordinator = new ReplayUiCoordinator(animationHelper, workers,
                 island -> bindingHelper.getIslandPosition(island));
         disableIslandButtons();
         chatHistoryArea.appendText("Darwin's Journey — connecting to server...\n");
@@ -191,8 +116,7 @@ public class GameController implements Initializable {
         Island target = BUTTON_TO_ISLAND.get(source.getId());
         if (target == null) return;
 
-        // OPTIMISTIC LOCK: Disable buttons instantly to prevent double-clicks
-        // while waiting for the server to validate the move.
+        // Prevent duplicate requests while the authoritative server validates the move.
         disableIslandButtons();
 
         tcpClient.send(new MoveRequestDTO(myPlayerId, 0, target));
@@ -215,8 +139,6 @@ public class GameController implements Initializable {
         helpAlert.setHeaderText("Island rules generated with Java Reflection");
         helpAlert.setContentText(ReflectionHelper.generateGameRules());
         helpAlert.initOwner(chatHistoryArea.getScene().getWindow());
-        // show() returns immediately; unlike showAndWait(), it does not pause
-        // this JavaFX event handler while the help window is open.
         helpAlert.show();
     }
 
@@ -230,16 +152,6 @@ public class GameController implements Initializable {
         islandIsabela.setDisable(!enabled);
         islandSantaCruz.setDisable(!enabled);
         islandSanCristobal.setDisable(!enabled);
-    }
-
-    private Circle getWorkerCircle(int playerId, int workerId) {
-        if (playerId == 1) return workerId == 0 ? p1Worker0 : p1Worker1;
-        else return workerId == 0 ? p2Worker0 : p2Worker1;
-    }
-
-    private WorkerDTO getWorkerData(GameStateDTO state, int playerId, int workerId) {
-        PlayerStateDTO p = playerId == 1 ? state.player1() : state.player2();
-        return workerId == 0 ? p.worker0() : p.worker1();
     }
 
     private void updateGamePhase(GameStateDTO s) {
@@ -257,94 +169,25 @@ public class GameController implements Initializable {
 
     @FXML
     private void onShowGlobalArchive() {
-        // TODO: Is it okay that this thread usage is "fire-and-forget"?
-        Thread.ofVirtual().start(() -> {
-            try {
-                var ctx = new InitialContext();
-                IDarwinArchive archive = (IDarwinArchive) ctx.lookup("rmi://localhost:1099/DarwinArchive");
-                int totalPoints = archive.getTotalGlobalResearchPoints();
-                int totalGames = archive.getTotalGamesPlayed();
-                Platform.runLater(() -> chatHistoryArea.appendText(
-                        "[ARCHIVE] Global Stats -> Games Played: " + totalGames
-                                + " | Total Research Points: " + totalPoints + "\n"
-                ));
-            } catch (Exception e) {
-                Platform.runLater(() -> chatHistoryArea.appendText(
-                        "[ARCHIVE ERROR] Could not retrieve archive stats: " + e.getMessage() + "\n"
-                ));
-            }
-        });
+        archiveClient.fetchStats(
+                stats -> Platform.runLater(() -> chatHistoryArea.appendText(
+                        "[ARCHIVE] Global Stats -> Games Played: " + stats.totalGames()
+                                + " | Total Research Points: " + stats.totalPoints() + "\n")),
+                error -> Platform.runLater(() -> chatHistoryArea.appendText(
+                        "[ARCHIVE ERROR] Could not retrieve archive stats: "
+                                + error.getMessage() + "\n")));
     }
 
     @FXML
     private void onWatchReplay() {
-        if (replayEngine.isRunning()) return; // prevent overlapping replays
-
-        // FileChooser is JavaFX's native OS file-picker dialog.
-        // showOpenDialog() blocks the FX thread until the user picks a file or
-        // cancels — similar to <input type="file"> + onChange in the browser.
-        FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Select Replay File");
-        fileChooser.getExtensionFilters().add(
-                new FileChooser.ExtensionFilter("Replay XML", "*.xml"));
-        // Default folder: the replays/ directory where DomXmlWriter saves files.
-        fileChooser.setInitialDirectory(new File("replays"));
-
-        File file = fileChooser.showOpenDialog(chatHistoryArea.getScene().getWindow());
-        if (file == null) return; // user cancelled the dialog
-
-        try {
-            // SAX parse + XSD validation in one call — throws if the XML is
-            // malformed or fails schema validation (caught below).
-            Queue<MoveRequestDTO> moves = saxReplayParser.parse(file);
-            if (moves.isEmpty()) {
-                chatHistoryArea.appendText("[REPLAY] No moves found in file.\n");
-                return;
-            }
-
-            // Reset workers to their base layout positions and original fill
-            // colours. Animations use additive translateX/Y (via setByX/Y), so
-            // leftover transforms from a previous game/animation would cause
-            // drift.
-            resetWorkerPositions();
-
-            chatHistoryArea.appendText("[REPLAY] Starting replay of " + moves.size() + " moves...\n");
-            disableIslandButtons();
-
-            // startReplay runs on a Virtual Thread that sleeps 1.5 s between moves.
-            // onComplete runs on the FX thread (guaranteed by ReplayEngine via
-            // Platform.runLater), so it's safe to touch UI state here.
-            replayEngine.startReplay(moves, () -> {
-                chatHistoryArea.appendText("[REPLAY] Replay finished.\n");
-                if (clientState == ClientState.PLAYING) {
-                    setButtonsEnabled(isMyTurn); // restore buttons if game is still live
-                }
-            });
-        } catch (Exception e) {
-            // Catches XSD validation failures, IO errors, malformed XML, etc.
-            chatHistoryArea.appendText("[REPLAY ERROR] " + e.getMessage() + "\n");
-        }
-    }
-
-    /**
-     * Resets every worker's visual state to its FXML-defined baseline.
-     * <p>
-     * translateX/Y are the animated offsets on top of layoutX/Y — clearing
-     * them returns the Circle to the position declared in {@code Game.fxml}.
-     * Fill colour is also reset because {@link AnimationHelper} modifies it
-     * during the level-up sequence and never restores the original.
-     */
-    private void resetWorkerPositions() {
-        for (Circle c : new Circle[]{p1Worker0, p1Worker1, p2Worker0, p2Worker1}) {
-            c.setTranslateX(0);
-            c.setTranslateY(0);
-        }
-        // Restore the two player-colour schemes declared in the FXML.
-        // Color.web() parses a CSS hex string — JavaFX uses the same colour
-        // syntax as browsers: named colours ("DODGERBLUE") and hex ("#ff3d1f").
-        p1Worker0.setFill(Color.DODGERBLUE);
-        p1Worker1.setFill(Color.DODGERBLUE);
-        p2Worker0.setFill(Color.web("#ff3d1f"));
-        p2Worker1.setFill(Color.web("#ff3d1f"));
+        replayCoordinator.watchReplay(
+                chatHistoryArea.getScene().getWindow(),
+                chatHistoryArea::appendText,
+                this::disableIslandButtons,
+                () -> {
+                    if (clientState == ClientState.PLAYING) {
+                        setButtonsEnabled(isMyTurn);
+                    }
+                });
     }
 }

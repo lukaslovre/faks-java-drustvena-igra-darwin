@@ -4,27 +4,9 @@ import java.io.Serial;
 import java.io.Serializable;
 
 /**
- * The MASTER state object — the entire game in one record.
- * <p>
- * This is what the Server broadcasts to ALL clients after every valid move.
- * The client replaces its entire local state with this.
- * <p>
- * winnerId CONVENTION:
- * 0 = game is still ongoing (no winner yet)
- * 1 = Player 1 has won (reached Level 5 on any track)
- * 2 = Player 2 has won
- * <p>
- * WHY NOT USE AN ENUM FOR winnerId?
- * An Optional<PlayerId> would be "cleaner" but Optional isn't Serializable.
- * A nullable Integer works but primitives are cheaper on the wire.
- * Using 0 as "no winner" is the simplest convention that works.
- * <p>
- * IMMUTABILITY:
- * Java records are inherently immutable — you cannot change their fields
- * after construction (like `const` in JS, but enforced by the compiler).
- * The Server creates a NEW GameStateDTO every time the state changes,
- * rather than mutating an existing one. This prevents bugs where one part
- * of the code modifies the state and another part doesn't see the change.
+ * Complete authoritative match state. Records make the state shallowly
+ * immutable, so the server publishes a new DTO instead of mutating one.
+ * {@code winnerId == 0} means that the match is still active.
  */
 public record GameStateDTO(
         PlayerStateDTO player1,
