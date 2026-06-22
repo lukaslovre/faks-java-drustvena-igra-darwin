@@ -4,6 +4,7 @@ target/
 !**/src/test/**/target/
 .kotlin
 replays/
+stats/
 docs/Deadline Completion Plan.md
 
 ### IntelliJ IDEA ###
