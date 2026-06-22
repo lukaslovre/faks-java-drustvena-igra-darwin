@@ -13,6 +13,8 @@ import javax.xml.transform.stream.StreamResult;
 import java.io.File;
 import java.time.Instant;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -20,6 +22,7 @@ import org.w3c.dom.Element;
 /** Builds a replay as a DOM tree, validates it, then writes it to disk. */
 public class DomXmlWriter {
 
+    private static final Logger LOGGER = Logger.getLogger(DomXmlWriter.class.getName());
     private static final String REPLAYS_DIR = "replays";
 
     /** Errors are logged rather than stopping the TCP server. */
@@ -70,9 +73,9 @@ public class DomXmlWriter {
             try {
                 XsdValidator.validate(new DOMSource(doc));
             } catch (SAXException e) {
-                System.err.println("XML does not match replay.xsd (wrote potentially invalid file): " + e.getMessage());
+                LOGGER.log(Level.WARNING, "XML does not match replay.xsd", e);
             } catch (RuntimeException e) {
-                System.err.println("replay.xsd not found on classpath (skipping validation): " + e.getMessage());
+                LOGGER.log(Level.WARNING, "replay.xsd not found; skipping validation", e);
             }
 
             // ── Step 3: Write the DOM tree to disk ────────────────────────────
@@ -93,11 +96,10 @@ public class DomXmlWriter {
             transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "4");
             transformer.transform(new DOMSource(doc), new StreamResult(outputFile));
 
-            System.out.println("Replay saved: " + outputFile.getAbsolutePath());
+            LOGGER.info(() -> "Replay saved: " + outputFile.getAbsolutePath());
 
         } catch (Exception e) {
-            System.err.println("Failed to write replay XML: " + e.getMessage());
-            e.printStackTrace();
+            LOGGER.log(Level.SEVERE, "Failed to write replay XML", e);
         }
     }
 }

@@ -9,9 +9,11 @@ import hr.tvz.darwin.shared.dto.WorkerDTO;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.logging.Logger;
 
 /** Validates moves and owns the server's authoritative game state. */
 public class GameEngine {
+    private static final Logger LOGGER = Logger.getLogger(GameEngine.class.getName());
     private static final int WIN_LEVEL = 5;
 
     private final List<MoveRequestDTO> moveHistory = new ArrayList<>();
@@ -54,7 +56,7 @@ public class GameEngine {
             moveHistory.add(request);
             stateToBroadcast = currentState;
             if (currentState.winnerId() != 0) {
-                System.out.println("Game over! Winner: Player " + currentState.winnerId());
+                LOGGER.info(() -> "Game over! Winner: Player " + currentState.winnerId());
             }
         }
 
@@ -132,7 +134,7 @@ public class GameEngine {
     public synchronized void reset() {
         moveHistory.clear();
         currentState = createInitialState();
-        System.out.println("GameEngine state has been reset.");
+        LOGGER.info("GameEngine state has been reset.");
     }
 
     private static GameStateDTO createInitialState() {

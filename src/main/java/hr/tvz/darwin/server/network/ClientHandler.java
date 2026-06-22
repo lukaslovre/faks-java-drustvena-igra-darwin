@@ -8,9 +8,12 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /** Reads serialized DTOs for one client on its own virtual thread. */
 public class ClientHandler implements Runnable {
+    private static final Logger LOGGER = Logger.getLogger(ClientHandler.class.getName());
     private static final String PLAYER_PREFIX = "Player ";
 
     private final Socket socket;
@@ -40,14 +43,14 @@ public class ClientHandler implements Runnable {
         try {
             // 1. THE HANDSHAKE: Tell the client who they are
             send(new WelcomeDTO(playerId));
-            System.out.println("Sent WelcomeDTO to " + PLAYER_PREFIX + playerId);
+            LOGGER.info(() -> "Sent WelcomeDTO to " + PLAYER_PREFIX + playerId);
 
             // If this is Player 2, broadcast initial state to start the game
             if (playerId == 2) {
-                System.out.println("Both players connected! Broadcasting initial state...");
+                LOGGER.info("Both players connected! Broadcasting initial state...");
                 server.broadcast(engine.getCurrentState());
             } else {
-                System.out.println(PLAYER_PREFIX + "1 waiting for opponent...");
+                LOGGER.info(PLAYER_PREFIX + "1 waiting for opponent...");
             }
 
             // 2. THE INFINITE LISTENING LOOP — processes DTOs until disconnect
@@ -56,7 +59,7 @@ public class ClientHandler implements Runnable {
                 Object payload = in.readObject();
                 switch (payload) {
                     case MoveRequestDTO move -> {
-                        System.out.println(PLAYER_PREFIX + move.playerId() + " move request: Worker "
+                        LOGGER.info(() -> PLAYER_PREFIX + move.playerId() + " move request: Worker "
                                 + move.workerId() + " -> " + move.targetIsland());
                         try {
                             engine.processMove(move);
@@ -65,16 +68,16 @@ public class ClientHandler implements Runnable {
                         }
                     }
                     case ChatMessageDTO chat -> {
-                        System.out.println(PLAYER_PREFIX + chat.playerId() + " chat: " + chat.message());
+                        LOGGER.info(() -> PLAYER_PREFIX + chat.playerId() + " chat: " + chat.message());
                         server.broadcast(chat);
                     }
-                    case null -> System.out.println("Received null payload");
-                    default -> System.out.println("Unknown payload type: " + payload.getClass().getName());
+                    case null -> LOGGER.info("Received null payload");
+                    default -> LOGGER.info(() -> "Unknown payload type: " + payload.getClass().getName());
                 }
             }
 
         } catch (Exception _) {
-            System.out.println(PLAYER_PREFIX + playerId + " disconnected.");
+            LOGGER.info(() -> PLAYER_PREFIX + playerId + " disconnected.");
             server.handleDisconnect();
         }
     }
@@ -91,7 +94,7 @@ public class ClientHandler implements Runnable {
             // Forget prior object identities so each DTO graph is written afresh.
             out.reset();
         } catch (IOException e) {
-            System.err.println("Error sending to Player " + playerId + ": " + e.getMessage());
+            LOGGER.log(Level.WARNING, e, () -> "Error sending to Player " + playerId);
         }
     }
 

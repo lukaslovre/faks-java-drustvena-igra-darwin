@@ -5,8 +5,11 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.util.function.Consumer;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class TcpClient {
+    private static final Logger LOGGER = Logger.getLogger(TcpClient.class.getName());
 
     private final String host;
     private final int port;
@@ -42,7 +45,7 @@ public class TcpClient {
             }
         } catch (Exception _) {
             if (running) {
-                System.err.println("TcpClient: Connection lost unexpectedly.");
+                LOGGER.warning("TcpClient connection lost unexpectedly.");
             }
         }
     }
@@ -53,7 +56,7 @@ public class TcpClient {
             out.flush();
             out.reset();
         } catch (IOException e) {
-            System.err.println("TcpClient send error: " + e.getMessage());
+            LOGGER.log(Level.WARNING, "TcpClient send error", e);
         }
     }
 

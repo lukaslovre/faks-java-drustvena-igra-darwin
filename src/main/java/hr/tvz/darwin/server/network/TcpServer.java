@@ -13,9 +13,12 @@ import java.net.Socket;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /** Accepts TCP clients and assigns each connection to a virtual thread. */
 public class TcpServer {
+    private static final Logger LOGGER = Logger.getLogger(TcpServer.class.getName());
     private static final int PORT = 8080;
 
     // Broadcast iteration remains safe while a handler disconnects.
@@ -40,10 +43,10 @@ public class TcpServer {
     private void saveFinalState(GameStateDTO state) {
         try {
             gameStateSerializer.save(state);
-            System.out.println("Final game state saved to saves/latest-game.ser");
+            LOGGER.info("Final game state saved to saves/latest-game.ser");
         } catch (IOException e) {
             // A filesystem problem must not stop the TCP server or the other end-game tasks.
-            System.err.println("Could not save final game state: " + e.getMessage());
+            LOGGER.log(Level.WARNING, "Could not save final game state", e);
         }
     }
 
@@ -53,20 +56,22 @@ public class TcpServer {
         try (var serverSocket = new ServerSocket(PORT);
              var executor = Executors.newVirtualThreadPerTaskExecutor()) {
 
-            System.out.println("Darwin's Journey Server started on port " + PORT + "...");
-            System.out.println("Waiting for Player 1 to connect...");
+            LOGGER.info(() -> "Darwin's Journey Server started on port " + PORT + "...");
+            LOGGER.info("Waiting for Player 1 to connect...");
 
             while (true) {
                 Socket socket = serverSocket.accept();
 
                 if (clients.size() >= 2) {
-                    System.out.println("Server full. Rejecting connection from " + socket.getRemoteSocketAddress());
+                    LOGGER.info(() -> "Server full. Rejecting connection from "
+                            + socket.getRemoteSocketAddress());
                     socket.close();
                     continue;
                 }
 
                 int playerId = clients.isEmpty() ? 1 : 2;
-                System.out.println("Player " + playerId + " connected from " + socket.getRemoteSocketAddress());
+                LOGGER.info(() -> "Player " + playerId + " connected from "
+                        + socket.getRemoteSocketAddress());
 
                 ClientHandler handler = new ClientHandler(socket, playerId, engine, this);
                 clients.add(handler);
@@ -74,8 +79,7 @@ public class TcpServer {
             }
 
         } catch (IOException e) {
-            System.err.println("Server error: " + e.getMessage());
-            e.printStackTrace();
+            LOGGER.log(Level.SEVERE, "Server error", e);
         }
     }
 
@@ -94,7 +98,7 @@ public class TcpServer {
      * Cleans up the entire lobby and prepares for a fresh game.
      */
     public synchronized void handleDisconnect() {
-        System.out.println("Initiating server teardown due to disconnect...");
+        LOGGER.info("Initiating server teardown due to disconnect...");
 
         // 1. Tell anyone still connected that the game is over
         broadcast(new ErrorDTO("Opponent disconnected. Server resetting."));
@@ -110,7 +114,7 @@ public class TcpServer {
         // 4. Reset the game rules
         engine.reset();
 
-        System.out.println("Server reset complete. Waiting for new players...");
+        LOGGER.info("Server reset complete. Waiting for new players...");
     }
 
     /**

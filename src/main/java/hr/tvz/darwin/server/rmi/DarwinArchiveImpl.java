@@ -10,6 +10,8 @@ import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * RMI service that aggregates match statistics across ALL games on this server.
@@ -24,6 +26,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class DarwinArchiveImpl extends UnicastRemoteObject implements IDarwinArchive {
 
+    private static final Logger LOGGER = Logger.getLogger(DarwinArchiveImpl.class.getName());
     private static DarwinArchiveImpl instance;
     private static final Path STATS_FILE = Path.of("stats", "global_stats.txt");
 
@@ -79,7 +82,7 @@ public class DarwinArchiveImpl extends UnicastRemoteObject implements IDarwinArc
             totalResearchPoints.set(Integer.parseInt(props.getProperty("research_points", "0")));
             totalGamesPlayed.set(Integer.parseInt(props.getProperty("games_played", "0")));
         } catch (IOException | NumberFormatException e) {
-            System.err.println("Error loading stats, starting with zero values: " + e.getMessage());
+            LOGGER.log(Level.WARNING, "Error loading stats; starting with zero values", e);
         }
     }
 
@@ -95,7 +98,7 @@ public class DarwinArchiveImpl extends UnicastRemoteObject implements IDarwinArc
             props.setProperty("games_played", String.valueOf(totalGamesPlayed.get()));
             props.store(writer, "Darwin Archive Global Statistics");
         } catch (IOException e) {
-            System.err.println("Failed to write stats file: " + e.getMessage());
+            LOGGER.log(Level.WARNING, "Failed to write stats file", e);
         }
     }
 

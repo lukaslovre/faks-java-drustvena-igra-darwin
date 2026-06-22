@@ -108,7 +108,7 @@ public class GameController implements Initializable {
         archiveClient = new ArchiveClient();
         gameStatePresenter = new GameStatePresenter(bindingHelper, animationHelper, workers, statusView);
         replayCoordinator = new ReplayUiCoordinator(animationHelper, bindingHelper, workers,
-                island -> bindingHelper.getIslandPosition(island));
+                bindingHelper::getIslandPosition);
         disableIslandButtons();
         statusView.showConnecting();
         chatHistoryArea.appendText("Darwin's Journey — connecting to server...\n");
