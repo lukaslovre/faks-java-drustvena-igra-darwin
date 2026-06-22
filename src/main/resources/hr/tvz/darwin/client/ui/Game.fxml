@@ -1,85 +1,101 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.scene.control.Button?>
-<?import javafx.scene.control.Menu?>
-<?import javafx.scene.control.MenuBar?>
-<?import javafx.scene.control.MenuItem?>
-<?import javafx.scene.control.ProgressBar?>
-<?import javafx.scene.control.TextArea?>
-<?import javafx.scene.control.TextField?>
-<?import javafx.scene.layout.AnchorPane?>
-<?import javafx.scene.layout.BorderPane?>
-<?import javafx.scene.layout.VBox?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
 <?import javafx.scene.shape.Circle?>
 
-<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0"
-            prefWidth="600.0" stylesheets="@style.css" xmlns="http://javafx.com/javafx/25.0.1"
-            xmlns:fx="http://javafx.com/fxml/1" fx:controller="hr.tvz.darwin.client.ui.GameController">
+<BorderPane prefHeight="620.0" prefWidth="1000.0" stylesheets="@style.css"
+            xmlns="http://javafx.com/javafx/25.0.1" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="hr.tvz.darwin.client.ui.GameController">
+    <top>
+        <VBox>
+            <MenuBar>
+                <menus>
+                    <Menu mnemonicParsing="false" text="Game">
+                        <items>
+                            <MenuItem mnemonicParsing="false" onAction="#onShowHelp" text="Help"/>
+                        </items>
+                    </Menu>
+                    <Menu mnemonicParsing="false" text="RMI / Global">
+                        <items>
+                            <MenuItem mnemonicParsing="false" onAction="#onShowGlobalArchive"
+                                      text="Show Global Archive..."/>
+                        </items>
+                    </Menu>
+                    <Menu mnemonicParsing="false" text="Replay">
+                        <items>
+                            <MenuItem mnemonicParsing="false" onAction="#onWatchReplay" text="Watch Replay..."/>
+                        </items>
+                    </Menu>
+                </menus>
+            </MenuBar>
+            <Label fx:id="statusLabel" maxWidth="Infinity" styleClass="status-label"
+                   text="Connecting to server..."/>
+        </VBox>
+    </top>
     <left>
-        <VBox prefHeight="200.0" prefWidth="200.0" BorderPane.alignment="CENTER">
-            <children>
-                <ProgressBar fx:id="botanyProgress" id="botanyProgress" prefWidth="200.0" progress="0.0"/>
-                <ProgressBar fx:id="zoologyProgress" id="zoologyProgress" layoutX="10.0" layoutY="10.0"
-                             prefWidth="200.0" progress="0.0"/>
-                <ProgressBar fx:id="geologyProgress" id="geologyProgress" layoutX="10.0" layoutY="30.0"
-                             prefWidth="200.0" progress="0.0"/>
-            </children>
+        <VBox prefWidth="220.0" spacing="10.0" styleClass="side-panel">
+            <padding><Insets bottom="20.0" left="20.0" right="20.0" top="20.0"/></padding>
+            <Label styleClass="panel-title" text="Your Research"/>
+            <Label fx:id="botanyLabel" styleClass="track-label" text="Botany  0 / 5"/>
+            <ProgressBar fx:id="botanyProgress" maxWidth="Infinity" progress="0.0"
+                         styleClass="track-progress, botany-progress"/>
+            <Label fx:id="zoologyLabel" styleClass="track-label" text="Zoology  0 / 5"/>
+            <ProgressBar fx:id="zoologyProgress" maxWidth="Infinity" progress="0.0"
+                         styleClass="track-progress, zoology-progress"/>
+            <Label fx:id="geologyLabel" styleClass="track-label" text="Geology  0 / 5"/>
+            <ProgressBar fx:id="geologyProgress" maxWidth="Infinity" progress="0.0"
+                         styleClass="track-progress, geology-progress"/>
+            <Separator/>
+            <Label styleClass="hint-text" text="Reach 5 on any track to win." wrapText="true"/>
         </VBox>
     </left>
     <right>
-        <VBox prefHeight="200.0" prefWidth="200.0" BorderPane.alignment="CENTER">
-            <children>
-                <TextArea fx:id="chatHistoryArea" id="chatHistoryArea" prefHeight="200.0" prefWidth="200.0"/>
-                <TextField fx:id="chatInputField" id="chatInputField"/>
-                <Button fx:id="sendChatBtn" id="sendChatBtn" mnemonicParsing="false" onAction="#onSendMessage"
-                        text="Send"/>
-            </children>
+        <VBox prefWidth="270.0" spacing="8.0" styleClass="side-panel">
+            <padding><Insets bottom="20.0" left="16.0" right="16.0" top="20.0"/></padding>
+            <Label styleClass="panel-title" text="Expedition Chat"/>
+            <TextArea fx:id="chatHistoryArea" editable="false" VBox.vgrow="ALWAYS" wrapText="true"/>
+            <TextField fx:id="chatInputField" onAction="#onSendMessage" promptText="Message the other player"/>
+            <Button fx:id="sendChatBtn" maxWidth="Infinity" mnemonicParsing="false"
+                    onAction="#onSendMessage" text="Send"/>
         </VBox>
     </right>
     <center>
-        <AnchorPane prefHeight="200.0" prefWidth="200.0" BorderPane.alignment="CENTER">
+        <AnchorPane minWidth="460.0" prefWidth="510.0" styleClass="board-pane">
             <children>
-                <Button fx:id="islandIsabela" id="islandIsabela" layoutX="150.0" layoutY="72.0" mnemonicParsing="false"
-                        onAction="#onIslandClick" text="Isabela"/>
-                <Button fx:id="islandSantaCruz" id="islandSantaCruz" layoutX="138.0" layoutY="104.0"
-                        mnemonicParsing="false" onAction="#onIslandClick" text="Santa Cruz"/>
-                <Button fx:id="islandSanCristobal" id="islandSanCristobal" layoutX="130.0" layoutY="136.0"
-                        mnemonicParsing="false"
-                        onAction="#onIslandClick" text="San Cristobal"/>
-                <Circle fx:id="p1Worker0" id="p1Worker0" fill="DODGERBLUE" layoutX="29.0" layoutY="344.0" radius="29.0"
-                        stroke="BLACK"
-                        strokeType="INSIDE"/>
-                <Circle fx:id="p1Worker1" id="p1Worker1" fill="DODGERBLUE" layoutX="87.0" layoutY="344.0" radius="29.0"
-                        stroke="BLACK"
-                        strokeType="INSIDE"/>
-                <Circle fx:id="p2Worker0" id="p2Worker0" fill="#ff3d1f" layoutX="313.0" layoutY="344.0" radius="29.0"
-                        stroke="BLACK"
-                        strokeType="INSIDE"/>
-                <Circle fx:id="p2Worker1" id="p2Worker1" fill="#ff3d1f" layoutX="371.0" layoutY="344.0" radius="29.0"
-                        stroke="BLACK"
-                        strokeType="INSIDE"/>
+                <Label layoutX="170.0" layoutY="24.0" styleClass="board-title" text="Galápagos Islands"/>
+                <Button fx:id="islandIsabela" layoutX="135.0" layoutY="78.0" mnemonicParsing="false"
+                        onAction="#onIslandClick" prefHeight="58.0" prefWidth="240.0" styleClass="island-button"
+                        text="Isabela&#10;Level 1+  •  +1 Botany"/>
+                <Button fx:id="islandSantaCruz" layoutX="135.0" layoutY="154.0" mnemonicParsing="false"
+                        onAction="#onIslandClick" prefHeight="58.0" prefWidth="240.0" styleClass="island-button"
+                        text="Santa Cruz&#10;Level 2+  •  +1 Zoology"/>
+                <Button fx:id="islandSanCristobal" layoutX="135.0" layoutY="230.0" mnemonicParsing="false"
+                        onAction="#onIslandClick" prefHeight="58.0" prefWidth="240.0" styleClass="island-button"
+                        text="San Cristóbal&#10;Level 3+  •  +1 Geology"/>
+
+                <Label layoutX="34.0" layoutY="380.0" styleClass="player-heading, player-one-text" text="PLAYER 1"/>
+                <Label layoutX="388.0" layoutY="380.0" styleClass="player-heading, player-two-text" text="PLAYER 2"/>
+                <Circle fx:id="p1Worker0" fill="DODGERBLUE" layoutX="72.0" layoutY="440.0" radius="27.0"
+                        styleClass="worker-token, selected-worker"/>
+                <Circle fx:id="p1Worker1" fill="DODGERBLUE" layoutX="170.0" layoutY="440.0" radius="27.0"
+                        styleClass="worker-token"/>
+                <Circle fx:id="p2Worker0" fill="#ff3d1f" layoutX="340.0" layoutY="440.0" radius="27.0"
+                        styleClass="worker-token, selected-worker"/>
+                <Circle fx:id="p2Worker1" fill="#ff3d1f" layoutX="438.0" layoutY="440.0" radius="27.0"
+                        styleClass="worker-token"/>
+                <Label fx:id="p1Worker0Label" layoutX="22.0" layoutY="478.0" styleClass="worker-label"
+                       text="Worker 0 • Level 1"/>
+                <Label fx:id="p1Worker1Label" layoutX="120.0" layoutY="478.0" styleClass="worker-label"
+                       text="Worker 1 • Level 1"/>
+                <Label fx:id="p2Worker0Label" layoutX="290.0" layoutY="478.0" styleClass="worker-label"
+                       text="Worker 0 • Level 1"/>
+                <Label fx:id="p2Worker1Label" layoutX="388.0" layoutY="478.0" styleClass="worker-label"
+                       text="Worker 1 • Level 1"/>
+                <Label layoutX="154.0" layoutY="548.0" styleClass="hint-text"
+                       text="Highlighted Worker 0 is used for moves."/>
             </children>
         </AnchorPane>
     </center>
-    <top>
-        <MenuBar BorderPane.alignment="CENTER">
-            <menus>
-                <Menu mnemonicParsing="false" text="Game">
-                    <items>
-                        <MenuItem mnemonicParsing="false" onAction="#onShowHelp" text="Help"/>
-                    </items>
-                </Menu>
-                <Menu mnemonicParsing="false" text="RMI/Global">
-                    <items>
-                        <MenuItem mnemonicParsing="false" onAction="#onShowGlobalArchive" text="Show Global Archive..."/>
-                    </items>
-                </Menu>
-                <Menu mnemonicParsing="false" text="Replay">
-                    <items>
-                        <MenuItem mnemonicParsing="false" onAction="#onWatchReplay" text="Watch Replay..."/>
-                    </items>
-                </Menu>
-            </menus>
-        </MenuBar>
-    </top>
 </BorderPane>

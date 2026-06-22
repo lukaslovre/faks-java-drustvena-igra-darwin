@@ -20,7 +20,7 @@ public class ClientApp extends Application {
         FXMLLoader fxmlLoader = new FXMLLoader(
                 getClass().getResource("/hr/tvz/darwin/client/ui/Game.fxml")
         );
-        Scene scene = new Scene(fxmlLoader.load(), 600, 400);
+        Scene scene = new Scene(fxmlLoader.load(), 1000, 620);
         GameController controller = fxmlLoader.getController();
 
         try {
@@ -39,6 +39,8 @@ public class ClientApp extends Application {
         }
 
         stage.setTitle("Darwin's Journey");
+        stage.setMinWidth(950);
+        stage.setMinHeight(620);
         stage.setScene(scene);
         stage.show();
     }

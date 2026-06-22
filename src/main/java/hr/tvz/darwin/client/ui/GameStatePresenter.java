@@ -15,6 +15,7 @@ public class GameStatePresenter {
     private final BindingHelper bindingHelper;
     private final AnimationHelper animationHelper;
     private final Map<Integer, Map<Integer, Circle>> workerCircles;
+    private final GameStatusView statusView;
 
     // This state is confined to the JavaFX Application Thread.
     private boolean animating;
@@ -22,18 +23,22 @@ public class GameStatePresenter {
 
     public GameStatePresenter(BindingHelper bindingHelper,
                               AnimationHelper animationHelper,
-                              Map<Integer, Map<Integer, Circle>> workerCircles) {
+                              Map<Integer, Map<Integer, Circle>> workerCircles,
+                              GameStatusView statusView) {
         this.bindingHelper = bindingHelper;
         this.animationHelper = animationHelper;
         this.workerCircles = workerCircles;
+        this.statusView = statusView;
     }
 
     public void present(GameStateDTO state, int localPlayerId,
                         Consumer<GameStateDTO> updatePhase,
                         Runnable disableControls) {
+        statusView.updateStatus(state, localPlayerId);
         if (state.lastMove() == null) {
-            updateTracks(state, localPlayerId);
+            applyState(state, localPlayerId);
             updatePhase.accept(state);
+            statusView.showWinnerOnce(state, localPlayerId);
             return;
         }
         if (animating) {
@@ -58,14 +63,16 @@ public class GameStatePresenter {
                                  Consumer<GameStateDTO> updatePhase) {
         GameStateDTO stateToApply = pendingState != null ? pendingState : animatedState;
         pendingState = null;
-        updateTracks(stateToApply, localPlayerId);
+        applyState(stateToApply, localPlayerId);
         updatePhase.accept(stateToApply);
+        statusView.showWinnerOnce(stateToApply, localPlayerId);
         animating = false;
     }
 
-    private void updateTracks(GameStateDTO state, int localPlayerId) {
+    private void applyState(GameStateDTO state, int localPlayerId) {
         PlayerStateDTO player = localPlayerId == 1 ? state.player1() : state.player2();
         bindingHelper.updateProgressBars(player);
+        statusView.updateWorkers(state);
     }
 
     private int getWorkerLevel(GameStateDTO state, MoveRequestDTO move) {

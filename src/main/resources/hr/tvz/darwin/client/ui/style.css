@@ -1,13 +1,78 @@
-/* Minimal MVP styling — will be detailed later */
 .root {
     -fx-font-family: "Segoe UI", sans-serif;
-    -fx-background-color: #f5f5f0;
+    -fx-font-size: 13px;
+    -fx-background-color: #f4f1e8;
 }
 
-#chatHistoryArea {
-    -fx-font-size: 12px;
+.status-label {
+    -fx-padding: 10 18;
+    -fx-background-color: #243b36;
+    -fx-text-fill: white;
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+}
+
+.side-panel {
+    -fx-background-color: #fffdf7;
+    -fx-border-color: #d8d2c2;
+    -fx-border-width: 0 1 0 1;
+}
+
+.panel-title, .board-title {
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #243b36;
+}
+
+.track-label, .player-heading {
+    -fx-font-weight: bold;
+}
+
+.track-progress {
+    -fx-pref-height: 18px;
+}
+
+.botany-progress .bar { -fx-background-color: #4f9d69; }
+.zoology-progress .bar { -fx-background-color: #d18b47; }
+.geology-progress .bar { -fx-background-color: #7189a8; }
+
+.board-pane {
+    -fx-background-color: #e8f0e5;
 }
 
 .island-button {
-    -fx-min-width: 90px;
+    -fx-background-color: #fffdf7;
+    -fx-border-color: #809a82;
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-cursor: hand;
+}
+
+.island-button:hover {
+    -fx-background-color: #f6f0d9;
+}
+
+.worker-token {
+    -fx-stroke: #243b36;
+    -fx-stroke-width: 2;
+}
+
+.selected-worker {
+    -fx-stroke: #f4c542;
+    -fx-stroke-width: 5;
+}
+
+.worker-label {
+    -fx-font-size: 11px;
+}
+
+.player-one-text { -fx-text-fill: #1769aa; }
+.player-two-text { -fx-text-fill: #c83724; }
+.hint-text { -fx-text-fill: #5d665f; -fx-font-size: 11px; }
+
+#chatHistoryArea {
+    -fx-font-family: monospace;
+    -fx-font-size: 12px;
 }

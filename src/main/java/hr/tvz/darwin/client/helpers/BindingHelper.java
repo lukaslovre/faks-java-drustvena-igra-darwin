@@ -3,6 +3,7 @@ package hr.tvz.darwin.client.helpers;
 import hr.tvz.darwin.shared.Island;
 import hr.tvz.darwin.shared.Track;
 import hr.tvz.darwin.shared.dto.PlayerStateDTO;
+import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
 
 import java.util.HashMap;
@@ -20,25 +21,28 @@ public class BindingHelper {
     private final ProgressBar botanyProgress;
     private final ProgressBar zoologyProgress;
     private final ProgressBar geologyProgress;
+    private final Map<Track, Label> trackLabels;
 
     private final Map<Island, double[]> islandPositions = new HashMap<>();
 
     public BindingHelper(ProgressBar botanyProgress, ProgressBar zoologyProgress,
-                         ProgressBar geologyProgress) {
+                         ProgressBar geologyProgress, Map<Track, Label> trackLabels) {
         this.botanyProgress = botanyProgress;
         this.zoologyProgress = zoologyProgress;
         this.geologyProgress = geologyProgress;
+        this.trackLabels = trackLabels;
 
         // Centers of the island buttons in the board coordinate system.
-        islandPositions.put(Island.ISABELA, new double[]{180.0, 102.0});
-        islandPositions.put(Island.SANTA_CRUZ, new double[]{168.0, 134.0});
-        islandPositions.put(Island.SAN_CRISTOBAL, new double[]{160.0, 166.0});
+        islandPositions.put(Island.ISABELA, new double[]{255.0, 107.0});
+        islandPositions.put(Island.SANTA_CRUZ, new double[]{255.0, 183.0});
+        islandPositions.put(Island.SAN_CRISTOBAL, new double[]{255.0, 259.0});
     }
 
     public void updateProgressBars(PlayerStateDTO player) {
         botanyProgress.setProgress(clampProgress(player.botany()));
         zoologyProgress.setProgress(clampProgress(player.zoology()));
         geologyProgress.setProgress(clampProgress(player.geology()));
+        updateTrackLabels(player.botany(), player.zoology(), player.geology());
     }
 
     /** Clears live values before a validated replay reconstructs local research. */
@@ -46,6 +50,7 @@ public class BindingHelper {
         botanyProgress.setProgress(0);
         zoologyProgress.setProgress(0);
         geologyProgress.setProgress(0);
+        updateTrackLabels(0, 0, 0);
     }
 
     /** Updates exactly one replay track without disturbing the other two. */
@@ -56,6 +61,7 @@ public class BindingHelper {
             case GEOLOGY -> geologyProgress;
         };
         progressBar.setProgress(clampProgress(value));
+        trackLabels.get(track).setText(formatTrack(track, value));
     }
 
     public double[] getIslandPosition(Island island) {
@@ -64,5 +70,16 @@ public class BindingHelper {
 
     private static double clampProgress(int value) {
         return Math.max(0.0, Math.min(1.0, value / MAX_TRACK));
+    }
+
+    private void updateTrackLabels(int botany, int zoology, int geology) {
+        trackLabels.get(Track.BOTANY).setText(formatTrack(Track.BOTANY, botany));
+        trackLabels.get(Track.ZOOLOGY).setText(formatTrack(Track.ZOOLOGY, zoology));
+        trackLabels.get(Track.GEOLOGY).setText(formatTrack(Track.GEOLOGY, geology));
+    }
+
+    private static String formatTrack(Track track, int value) {
+        String name = track.name().charAt(0) + track.name().substring(1).toLowerCase();
+        return name + "  " + value + " / " + (int) MAX_TRACK;
     }
 }

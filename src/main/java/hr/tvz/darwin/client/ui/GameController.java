@@ -7,16 +7,13 @@ import hr.tvz.darwin.client.network.TcpClient;
 import hr.tvz.darwin.client.replay.ReplayUiCoordinator;
 import hr.tvz.darwin.shared.Island;
 import hr.tvz.darwin.shared.ReflectionHelper;
+import hr.tvz.darwin.shared.Track;
 import hr.tvz.darwin.shared.dto.*;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
-import javafx.scene.control.Alert;
-import javafx.scene.control.Button;
-import javafx.scene.control.ProgressBar;
-import javafx.scene.control.TextArea;
-import javafx.scene.control.TextField;
+import javafx.scene.control.*;
 import javafx.scene.shape.Circle;
 
 import java.net.URL;
@@ -26,25 +23,22 @@ import java.util.ResourceBundle;
 public class GameController implements Initializable {
 
     private enum ClientState {DISCONNECTED, WAITING, PLAYING, GAME_OVER}
+    private static final int DEFAULT_WORKER_ID = 0;
 
-    @FXML private ProgressBar botanyProgress;
-    @FXML private ProgressBar zoologyProgress;
-    @FXML private ProgressBar geologyProgress;
+    @FXML private ProgressBar botanyProgress, zoologyProgress, geologyProgress;
+    @FXML private Label botanyLabel, zoologyLabel, geologyLabel, statusLabel;
     @FXML private TextArea chatHistoryArea;
     @FXML private TextField chatInputField;
-    @FXML private Button islandIsabela;
-    @FXML private Button islandSantaCruz;
-    @FXML private Button islandSanCristobal;
-    @FXML private Circle p1Worker0;
-    @FXML private Circle p1Worker1;
-    @FXML private Circle p2Worker0;
-    @FXML private Circle p2Worker1;
+    @FXML private Button islandIsabela, islandSantaCruz, islandSanCristobal;
+    @FXML private Circle p1Worker0, p1Worker1, p2Worker0, p2Worker1;
+    @FXML private Label p1Worker0Label, p1Worker1Label, p2Worker0Label, p2Worker1Label;
 
     private BindingHelper bindingHelper;
     private TcpClient tcpClient;
     private ArchiveClient archiveClient;
     private ReplayUiCoordinator replayCoordinator;
     private GameStatePresenter gameStatePresenter;
+    private GameStatusView statusView;
     private int myPlayerId = -1;
     private ClientState clientState = ClientState.DISCONNECTED;
 
@@ -68,6 +62,7 @@ public class GameController implements Initializable {
                     myPlayerId = w.playerId();
                     clientState = ClientState.WAITING;
                     disableIslandButtons();
+                    statusView.showWaiting(myPlayerId);
                     chatHistoryArea.appendText("Connected as Player " + myPlayerId + ". Waiting for opponent...\n");
                 }
                 case GameStateDTO state -> gameStatePresenter.present(
@@ -75,6 +70,7 @@ public class GameController implements Initializable {
                 case ErrorDTO e when e.errorMessage().contains("Opponent disconnected") -> {
                     clientState = ClientState.GAME_OVER;
                     disableIslandButtons();
+                    statusView.showOpponentDisconnected();
                     chatHistoryArea.appendText("[SERVER] " + e.errorMessage() + "\n");
                 }
                 case ErrorDTO e when clientState == ClientState.PLAYING -> {
@@ -95,17 +91,22 @@ public class GameController implements Initializable {
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         bindingHelper = new BindingHelper(
-                botanyProgress, zoologyProgress, geologyProgress
+                botanyProgress, zoologyProgress, geologyProgress,
+                Map.of(Track.BOTANY, botanyLabel, Track.ZOOLOGY, zoologyLabel, Track.GEOLOGY, geologyLabel)
         );
         AnimationHelper animationHelper = new AnimationHelper();
         Map<Integer, Map<Integer, Circle>> workers = Map.of(
                 1, Map.of(0, p1Worker0, 1, p1Worker1),
                 2, Map.of(0, p2Worker0, 1, p2Worker1));
+        statusView = new GameStatusView(statusLabel, Map.of(
+                1, Map.of(0, p1Worker0Label, 1, p1Worker1Label),
+                2, Map.of(0, p2Worker0Label, 1, p2Worker1Label)));
         archiveClient = new ArchiveClient();
-        gameStatePresenter = new GameStatePresenter(bindingHelper, animationHelper, workers);
+        gameStatePresenter = new GameStatePresenter(bindingHelper, animationHelper, workers, statusView);
         replayCoordinator = new ReplayUiCoordinator(animationHelper, bindingHelper, workers,
                 island -> bindingHelper.getIslandPosition(island));
         disableIslandButtons();
+        statusView.showConnecting();
         chatHistoryArea.appendText("Darwin's Journey — connecting to server...\n");
     }
 
@@ -119,8 +120,8 @@ public class GameController implements Initializable {
         // Prevent duplicate requests while the authoritative server validates the move.
         disableIslandButtons();
 
-        tcpClient.send(new MoveRequestDTO(myPlayerId, 0, target));
-        chatHistoryArea.appendText("Sent move: Worker 0 -> " + target.name() + "\n");
+        tcpClient.send(new MoveRequestDTO(myPlayerId, DEFAULT_WORKER_ID, target));
+        chatHistoryArea.appendText("Sent move: Worker " + DEFAULT_WORKER_ID + " -> " + target.name() + "\n");
     }
 
     @FXML
