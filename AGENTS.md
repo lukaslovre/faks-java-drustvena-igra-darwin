@@ -31,8 +31,8 @@ The developer is highly experienced in JavaScript/TypeScript but a beginner in J
 - `hr.tvz.darwin.client.ClientApp` - JavaFX UI
 
 ```bash
-mvn compile javafx:run -Dexec.mainClass=hr.tvz.darwin.server.ServerApp  # server
-mvn compile javafx:run                                      # client x2 (configured in pom.xml)
+mvn compile exec:java -Dexec.mainClass=hr.tvz.darwin.server.ServerApp  # server
+mvn compile javafx:run                                                  # client x2 (configured in pom.xml)
 ```
 
 ## Progressive Context (Pre-implementation Docs)
