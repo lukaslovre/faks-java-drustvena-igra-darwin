@@ -49,7 +49,7 @@ public class DarwinArchiveImpl extends UnicastRemoteObject implements IDarwinArc
             try {
                 instance = new DarwinArchiveImpl();
             } catch (RemoteException e) {
-                throw new RuntimeException("Failed to initialize DarwinArchiveImpl", e);
+                throw new IllegalStateException("Failed to initialize DarwinArchiveImpl", e);
             }
         }
         return instance;

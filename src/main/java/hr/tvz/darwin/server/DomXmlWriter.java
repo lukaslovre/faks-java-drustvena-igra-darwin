@@ -5,12 +5,14 @@ import hr.tvz.darwin.shared.dto.MoveRequestDTO;
 
 import org.xml.sax.SAXException;
 
+import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.transform.OutputKeys;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import java.io.File;
+import java.io.IOException;
 import java.time.Instant;
 import java.util.List;
 import java.util.logging.Level;
@@ -70,13 +72,7 @@ public class DomXmlWriter {
             //   - SAXException → the XML we built doesn't match the schema (bug)
             //   - RuntimeException → the .xsd isn't on the classpath (misconfiguration)
             //   - Success → everything is fine, continue writing
-            try {
-                XsdValidator.validate(new DOMSource(doc));
-            } catch (SAXException e) {
-                LOGGER.log(Level.WARNING, "XML does not match replay.xsd", e);
-            } catch (RuntimeException e) {
-                LOGGER.log(Level.WARNING, "replay.xsd not found; skipping validation", e);
-            }
+            validateReplay(doc);
 
             // ── Step 3: Write the DOM tree to disk ────────────────────────────
             // Ensure the replays/ directory exists. mkdirs() creates all missing
@@ -91,7 +87,10 @@ public class DomXmlWriter {
             File outputFile = new File(replaysDir, "replay_" + sanitizedTimestamp + ".xml");
 
             // Transformer writes the DOM tree to a file.
-            var transformer = TransformerFactory.newInstance().newTransformer();
+            TransformerFactory transformerFactory = TransformerFactory.newInstance();
+            transformerFactory.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+            transformerFactory.setAttribute(XMLConstants.ACCESS_EXTERNAL_STYLESHEET, "");
+            var transformer = transformerFactory.newTransformer();
             transformer.setOutputProperty(OutputKeys.INDENT, "yes");
             transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "4");
             transformer.transform(new DOMSource(doc), new StreamResult(outputFile));
@@ -100,6 +99,16 @@ public class DomXmlWriter {
 
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "Failed to write replay XML", e);
+        }
+    }
+
+    private static void validateReplay(Document document) throws IOException {
+        try {
+            XsdValidator.validate(new DOMSource(document));
+        } catch (SAXException e) {
+            LOGGER.log(Level.WARNING, "XML does not match replay.xsd", e);
+        } catch (RuntimeException e) {
+            LOGGER.log(Level.WARNING, "replay.xsd not found; skipping validation", e);
         }
     }
 }

@@ -8,9 +8,11 @@ import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
 
 import javax.xml.parsers.SAXParserFactory;
+import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.XMLConstants;
 import javax.xml.transform.stream.StreamSource;
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Queue;
 
@@ -36,9 +38,12 @@ public class SaxReplayParser extends DefaultHandler {
      *
      * @param xmlFile the replay {@code .xml} file to read
      * @return the populated queue of moves
-     * @throws Exception propagated from either XSD validation or SAX parsing
+     * @throws IOException if the replay or schema cannot be read
+     * @throws SAXException if validation or parsing fails
+     * @throws ParserConfigurationException if the platform cannot create a secure SAX parser
      */
-    public Queue<MoveRequestDTO> parse(File xmlFile) throws Exception {
+    public Queue<MoveRequestDTO> parse(File xmlFile)
+            throws IOException, SAXException, ParserConfigurationException {
         moves.clear();
         expectedTurn = 1;
         XsdValidator.validate(new StreamSource(xmlFile));

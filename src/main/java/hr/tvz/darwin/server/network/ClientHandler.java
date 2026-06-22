@@ -58,15 +58,7 @@ public class ClientHandler implements Runnable {
                 // BLOCKS until client sends an object
                 Object payload = in.readObject();
                 switch (payload) {
-                    case MoveRequestDTO move -> {
-                        LOGGER.info(() -> PLAYER_PREFIX + move.playerId() + " move request: Worker "
-                                + move.workerId() + " -> " + move.targetIsland());
-                        try {
-                            engine.processMove(move);
-                        } catch (InvalidMoveException e) {
-                            send(new ErrorDTO(e.getMessage()));
-                        }
-                    }
+                    case MoveRequestDTO move -> processMove(move);
                     case ChatMessageDTO chat -> {
                         LOGGER.info(() -> PLAYER_PREFIX + chat.playerId() + " chat: " + chat.message());
                         server.broadcast(chat);
@@ -79,6 +71,16 @@ public class ClientHandler implements Runnable {
         } catch (Exception _) {
             LOGGER.info(() -> PLAYER_PREFIX + playerId + " disconnected.");
             server.handleDisconnect();
+        }
+    }
+
+    private void processMove(MoveRequestDTO move) {
+        LOGGER.info(() -> PLAYER_PREFIX + move.playerId() + " move request: Worker "
+                + move.workerId() + " -> " + move.targetIsland());
+        try {
+            engine.processMove(move);
+        } catch (InvalidMoveException e) {
+            send(new ErrorDTO(e.getMessage()));
         }
     }
 

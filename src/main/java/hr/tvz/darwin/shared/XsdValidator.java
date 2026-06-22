@@ -36,7 +36,7 @@ public class XsdValidator {
      * @return a fresh Validator for replay.xsd
      * @throws SAXException if the .xsd file is malformed or cannot be compiled into a Schema
      * @throws IOException  if reading the .xsd resource from classpath fails
-     * @throws RuntimeException if replay.xsd is not found on the classpath (misconfiguration)
+     * @throws IllegalStateException if replay.xsd is not found on the classpath
      */
     public static Validator getValidator() throws SAXException, IOException {
         if (cachedSchema == null) {
@@ -49,7 +49,8 @@ public class XsdValidator {
                     try (InputStream xsdStream = XsdValidator.class
                             .getClassLoader().getResourceAsStream(XSD_RESOURCE)) {
                         if (xsdStream == null) {
-                            throw new RuntimeException("Cannot find " + XSD_RESOURCE + " on classpath");
+                            throw new IllegalStateException(
+                                    "Cannot find " + XSD_RESOURCE + " on classpath");
                         }
                         cachedSchema = sf.newSchema(
                                 new javax.xml.transform.stream.StreamSource(xsdStream));
@@ -69,7 +70,7 @@ public class XsdValidator {
      * @param source the XML Source to validate (e.g. DOMSource, StreamSource)
      * @throws SAXException     if the XML does not conform to replay.xsd
      * @throws IOException      if reading the XML source or .xsd resource fails
-     * @throws RuntimeException if replay.xsd is not found on the classpath
+     * @throws IllegalStateException if replay.xsd is not found on the classpath
      */
     public static void validate(Source source) throws SAXException, IOException {
         getValidator().validate(source);
