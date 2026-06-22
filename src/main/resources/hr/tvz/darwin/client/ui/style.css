@@ -65,6 +65,7 @@
 }
 
 .worker-label {
+    -fx-alignment: center;
     -fx-font-size: 11px;
 }
 
