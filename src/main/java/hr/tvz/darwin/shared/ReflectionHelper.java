@@ -6,7 +6,7 @@ import java.lang.reflect.Field;
  * Reads @GameRule annotations at runtime using Java Reflection.
  * <p>
  * Opens up the Island enum class, finds all fields tagged with @GameRule,
- * reads their description strings, and prints a "Help Manual".
+ * reads their description strings, and generates a "Help Manual".
  * <p>
  * HOW REFLECTION WORKS:
  * 1. `Island.class` → gets the Class object (like `Island` constructor in JS,
@@ -41,14 +41,8 @@ public final class ReflectionHelper {
         // private is the standard pattern for "this class only has static methods."
     }
 
-    /**
-     * Scans the Island enum for @GameRule annotations and prints
-     * a formatted help manual to the console.
-     */
-    public static void printGameRules() {
-        System.out.println("=== Darwin's Journey — Rule Manual (via Reflection) ===");
-        System.out.println();
-
+    public static String generateGameRules() {
+        StringBuilder manual = new StringBuilder("Darwin's Journey — Rule Manual\n\n");
         // Island.class is the "class literal" — it gives us the Class object
         // representing the Island enum type itself (not an instance of it)
         Field[] fields = Island.class.getDeclaredFields();
@@ -58,14 +52,17 @@ public final class ReflectionHelper {
             // so we can read its properties (like .description())
             GameRule rule = field.getAnnotation(GameRule.class);
 
-            if (rule == null) continue;
-
-            // field.getName() gives us the enum constant name (e.g. "ISABELA")
-            System.out.printf("  %-15s → %s%n", field.getName(), rule.description());
-
+            if (rule != null) {
+                manual.append(formatIslandName(field.getName()))
+                        .append(" — ")
+                        .append(rule.description())
+                        .append(System.lineSeparator());
+            }
         }
+        return manual.toString();
+    }
 
-        System.out.println();
-        System.out.println("=== End of Rule Manual ===");
+    private static String formatIslandName(String enumConstantName) {
+        return enumConstantName.replace('_', ' ');
     }
 }

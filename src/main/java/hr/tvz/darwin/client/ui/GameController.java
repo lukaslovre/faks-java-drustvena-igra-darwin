@@ -6,12 +6,14 @@ import hr.tvz.darwin.client.network.TcpClient;
 import hr.tvz.darwin.client.replay.ReplayEngine;
 import hr.tvz.darwin.client.replay.SaxReplayParser;
 import hr.tvz.darwin.shared.Island;
+import hr.tvz.darwin.shared.ReflectionHelper;
 import hr.tvz.darwin.shared.dto.*;
 import hr.tvz.darwin.shared.rmi.IDarwinArchive;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.control.TextArea;
@@ -204,6 +206,18 @@ public class GameController implements Initializable {
         if (message == null || message.isBlank()) return;
         tcpClient.send(new ChatMessageDTO(myPlayerId, message));
         chatInputField.clear();
+    }
+
+    @FXML
+    private void onShowHelp() {
+        Alert helpAlert = new Alert(Alert.AlertType.INFORMATION);
+        helpAlert.setTitle("Darwin's Journey Help");
+        helpAlert.setHeaderText("Island rules generated with Java Reflection");
+        helpAlert.setContentText(ReflectionHelper.generateGameRules());
+        helpAlert.initOwner(chatHistoryArea.getScene().getWindow());
+        // show() returns immediately; unlike showAndWait(), it does not pause
+        // this JavaFX event handler while the help window is open.
+        helpAlert.show();
     }
 
     private void disableIslandButtons() {
