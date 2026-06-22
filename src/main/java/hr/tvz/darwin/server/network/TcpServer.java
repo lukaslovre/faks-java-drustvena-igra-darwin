@@ -1,6 +1,7 @@
 package hr.tvz.darwin.server.network;
 
 import hr.tvz.darwin.server.DomXmlWriter;
+import hr.tvz.darwin.server.GameStateSerializer;
 import hr.tvz.darwin.server.core.GameEngine;
 import hr.tvz.darwin.server.rmi.DarwinArchiveImpl;
 import hr.tvz.darwin.shared.dto.ErrorDTO;
@@ -52,6 +53,8 @@ public class TcpServer {
      */
     private final GameEngine engine;
 
+    private final GameStateSerializer gameStateSerializer;
+
     /**
      * Flag to track if game has started (both players connected).
      */
@@ -59,14 +62,26 @@ public class TcpServer {
 
     public TcpServer() {
         this.engine = new GameEngine();
+        this.gameStateSerializer = new GameStateSerializer();
         this.engine.setOnStateChanged(state -> {
             broadcast(state);
             // Save game state if game ended
             if (state.winnerId() != 0) {
+                saveFinalState(state);
                 new DomXmlWriter().saveGame(engine.getMoveHistory(), state.winnerId());
                 DarwinArchiveImpl.getInstance().onGameEnded(state);
             }
         });
+    }
+
+    private void saveFinalState(GameStateDTO state) {
+        try {
+            gameStateSerializer.save(state);
+            System.out.println("Final game state saved to saves/latest-game.ser");
+        } catch (IOException e) {
+            // A filesystem problem must not stop the TCP server or the other end-game tasks.
+            System.err.println("Could not save final game state: " + e.getMessage());
+        }
     }
 
     /**
