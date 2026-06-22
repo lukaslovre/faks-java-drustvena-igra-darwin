@@ -9,6 +9,7 @@ replays/
 saves/
 stats/
 docs/Deadline Completion Plan.md
+*.zip
 
 ### IntelliJ IDEA ###
 .idea/modules.xml

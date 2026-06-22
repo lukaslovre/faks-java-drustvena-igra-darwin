@@ -59,7 +59,7 @@ public class GameStatusView {
     }
 
     private void updatePlayerWorkers(int playerId, PlayerStateDTO player) {
-        workerLabels.get(playerId).get(0).setText("Worker 0 • Level " + player.worker0().level());
-        workerLabels.get(playerId).get(1).setText("Worker 1 • Level " + player.worker1().level());
+        workerLabels.get(playerId).get(0).setText("Level " + player.worker0().level());
+        workerLabels.get(playerId).get(1).setText("Level " + player.worker1().level());
     }
 }

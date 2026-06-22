@@ -86,13 +86,13 @@
                 <Circle fx:id="p2Worker1" fill="#ff3d1f" layoutX="438.0" layoutY="440.0" radius="27.0"
                         styleClass="worker-token"/>
                 <Label fx:id="p1Worker0Label" layoutX="22.0" layoutY="478.0" styleClass="worker-label"
-                       text="Worker 0 • Level 1"/>
+                       text="Level 1"/>
                 <Label fx:id="p1Worker1Label" layoutX="120.0" layoutY="478.0" styleClass="worker-label"
-                       text="Worker 1 • Level 1"/>
+                       text="Level 1"/>
                 <Label fx:id="p2Worker0Label" layoutX="290.0" layoutY="478.0" styleClass="worker-label"
-                       text="Worker 0 • Level 1"/>
+                       text="Level 1"/>
                 <Label fx:id="p2Worker1Label" layoutX="388.0" layoutY="478.0" styleClass="worker-label"
-                       text="Worker 1 • Level 1"/>
+                       text="Level 1"/>
                 <Label layoutX="154.0" layoutY="548.0" styleClass="hint-text"
                        text="Highlighted Worker 0 is used for moves."/>
             </children>
