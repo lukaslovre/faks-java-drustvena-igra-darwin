@@ -14,7 +14,14 @@
                 <xs:element name="MatchInfo">
                     <xs:complexType>
                         <xs:attribute name="timestamp" type="xs:string" use="required"/>
-                        <xs:attribute name="winnerId" type="xs:integer" use="required"/>
+                        <xs:attribute name="winnerId" use="required">
+                            <xs:simpleType>
+                                <xs:restriction base="xs:integer">
+                                    <xs:minInclusive value="1"/>
+                                    <xs:maxInclusive value="2"/>
+                                </xs:restriction>
+                            </xs:simpleType>
+                        </xs:attribute>
                     </xs:complexType>
                 </xs:element>
 
@@ -25,9 +32,23 @@
                         <xs:sequence>
                             <xs:element name="Move" minOccurs="0" maxOccurs="unbounded">
                                 <xs:complexType>
-                                    <xs:attribute name="turn" type="xs:integer" use="required"/>
-                                    <xs:attribute name="playerId" type="xs:integer" use="required"/>
-                                    <xs:attribute name="workerId" type="xs:integer" use="required"/>
+                                    <xs:attribute name="turn" type="xs:positiveInteger" use="required"/>
+                                    <xs:attribute name="playerId" use="required">
+                                        <xs:simpleType>
+                                            <xs:restriction base="xs:integer">
+                                                <xs:minInclusive value="1"/>
+                                                <xs:maxInclusive value="2"/>
+                                            </xs:restriction>
+                                        </xs:simpleType>
+                                    </xs:attribute>
+                                    <xs:attribute name="workerId" use="required">
+                                        <xs:simpleType>
+                                            <xs:restriction base="xs:integer">
+                                                <xs:minInclusive value="0"/>
+                                                <xs:maxInclusive value="1"/>
+                                            </xs:restriction>
+                                        </xs:simpleType>
+                                    </xs:attribute>
                                     <!-- targetIsland is an XSD enum restricted -->
                                     <xs:attribute name="targetIsland" use="required">
                                         <xs:simpleType>

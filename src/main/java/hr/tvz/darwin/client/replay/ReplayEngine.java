@@ -2,6 +2,7 @@ package hr.tvz.darwin.client.replay;
 
 import hr.tvz.darwin.client.helpers.AnimationHelper;
 import hr.tvz.darwin.shared.Island;
+import hr.tvz.darwin.shared.Track;
 import hr.tvz.darwin.shared.dto.MoveRequestDTO;
 import javafx.application.Platform;
 import javafx.scene.shape.Circle;
@@ -9,6 +10,8 @@ import javafx.scene.shape.Circle;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Queue;
+import java.util.concurrent.CountDownLatch;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 /**
@@ -16,8 +19,6 @@ import java.util.function.Function;
  * to the JavaFX Application Thread with {@link Platform#runLater(Runnable)}.
  */
 public class ReplayEngine {
-    private static final long MOVE_DELAY_MS = 1500;
-
     private final AnimationHelper animationHelper;
 
     // outer key = playerId, inner key = workerId, value = the JavaFX Circle Node
@@ -36,17 +37,19 @@ public class ReplayEngine {
     }
 
     /** Starts one replay and posts its completion callback to the FX thread. */
-    public void startReplay(Queue<MoveRequestDTO> moves, Runnable onComplete) {
+    public void startReplay(Queue<MoveRequestDTO> moves, int localPlayerId,
+                            BiConsumer<Track, Integer> updateResearch,
+                            Runnable onComplete) {
         if (running) return;
         running = true;
 
         Thread.ofVirtual().start(() -> {
-            // Replay XML stores moves rather than resulting worker levels.
             Map<String, Integer> workerLevels = new HashMap<>();
             workerLevels.put("1-0", 1);
             workerLevels.put("1-1", 1);
             workerLevels.put("2-0", 1);
             workerLevels.put("2-1", 1);
+            Map<Track, Integer> research = new HashMap<>();
 
             for (MoveRequestDTO move : moves) {
                 if (!running) break;
@@ -55,21 +58,23 @@ public class ReplayEngine {
                 int currentLevel = workerLevels.getOrDefault(key, 1);
                 int newLevel = Math.min(currentLevel + 1, 3);
                 workerLevels.put(key, newLevel);
+                CountDownLatch animationFinished = new CountDownLatch(1);
 
-                // The animation itself is non-blocking: 
-                // playTurnAnimation() starts a SequentialTransition and returns immediately.
                 Platform.runLater(() -> {
-                    Circle worker = workerCircles
-                            .get(move.playerId())
-                            .get(move.workerId());
-                    if (worker == null) return;
-                    double[] pos = islandPositions.apply(move.targetIsland());
-                    animationHelper.playTurnAnimation(
-                            worker, pos[0], pos[1], newLevel, null);
+                    try {
+                        Circle worker = workerCircles.get(move.playerId()).get(move.workerId());
+                        double[] pos = islandPositions.apply(move.targetIsland());
+                        animationHelper.playTurnAnimation(worker, pos[0], pos[1], newLevel,
+                                () -> finishMove(move, localPlayerId, research,
+                                        updateResearch, animationFinished));
+                    } catch (RuntimeException exception) {
+                        animationFinished.countDown();
+                    }
                 });
 
                 try {
-                    Thread.sleep(MOVE_DELAY_MS);
+                    // Comparable to awaiting a Promise resolved by the FX animation callback.
+                    animationFinished.await();
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     break;
@@ -81,6 +86,21 @@ public class ReplayEngine {
                 Platform.runLater(onComplete);
             }
         });
+    }
+
+    private void finishMove(MoveRequestDTO move, int localPlayerId,
+                            Map<Track, Integer> research,
+                            BiConsumer<Track, Integer> updateResearch,
+                            CountDownLatch animationFinished) {
+        try {
+            if (move.playerId() == localPlayerId) {
+                Track track = move.targetIsland().reward;
+                int value = research.merge(track, 1, Integer::sum);
+                updateResearch.accept(track, value);
+            }
+        } finally {
+            animationFinished.countDown();
+        }
     }
 
     /**

@@ -103,7 +103,7 @@ public class GameController implements Initializable {
                 2, Map.of(0, p2Worker0, 1, p2Worker1));
         archiveClient = new ArchiveClient();
         gameStatePresenter = new GameStatePresenter(bindingHelper, animationHelper, workers);
-        replayCoordinator = new ReplayUiCoordinator(animationHelper, workers,
+        replayCoordinator = new ReplayUiCoordinator(animationHelper, bindingHelper, workers,
                 island -> bindingHelper.getIslandPosition(island));
         disableIslandButtons();
         chatHistoryArea.appendText("Darwin's Journey — connecting to server...\n");
@@ -180,14 +180,15 @@ public class GameController implements Initializable {
 
     @FXML
     private void onWatchReplay() {
+        if (clientState == ClientState.PLAYING) {
+            chatHistoryArea.appendText("[REPLAY] Replay is not available during game.\n");
+            return;
+        }
         replayCoordinator.watchReplay(
                 chatHistoryArea.getScene().getWindow(),
                 chatHistoryArea::appendText,
+                myPlayerId,
                 this::disableIslandButtons,
-                () -> {
-                    if (clientState == ClientState.PLAYING) {
-                        setButtonsEnabled(isMyTurn);
-                    }
-                });
+                this::disableIslandButtons);
     }
 }

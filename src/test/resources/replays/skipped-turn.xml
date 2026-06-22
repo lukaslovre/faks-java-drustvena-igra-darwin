@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<DarwinReplay>
+    <MatchInfo timestamp="2026-06-22T12:00:00Z" winnerId="1"/>
+    <Moves>
+        <Move turn="1" playerId="1" workerId="0" targetIsland="ISABELA"/>
+        <Move turn="3" playerId="2" workerId="0" targetIsland="ISABELA"/>
+    </Moves>
+</DarwinReplay>

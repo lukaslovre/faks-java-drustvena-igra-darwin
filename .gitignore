@@ -4,6 +4,8 @@ target/
 !**/src/test/**/target/
 .kotlin
 replays/
+!/src/test/resources/replays/
+!/src/test/resources/replays/*.xml
 saves/
 stats/
 docs/Deadline Completion Plan.md

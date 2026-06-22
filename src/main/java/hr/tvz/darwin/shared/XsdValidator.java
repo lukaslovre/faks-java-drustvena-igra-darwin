@@ -3,6 +3,7 @@ package hr.tvz.darwin.shared;
 import org.xml.sax.SAXException;
 
 import javax.xml.transform.Source;
+import javax.xml.XMLConstants;
 import javax.xml.validation.Schema;
 import javax.xml.validation.SchemaFactory;
 import javax.xml.validation.Validator;
@@ -38,7 +39,9 @@ public class XsdValidator {
             synchronized (XsdValidator.class) {
                 if (cachedSchema == null) {
                     SchemaFactory sf = SchemaFactory.newInstance(
-                            javax.xml.XMLConstants.W3C_XML_SCHEMA_NS_URI);
+                            XMLConstants.W3C_XML_SCHEMA_NS_URI);
+                    sf.setProperty(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+                    sf.setProperty(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
                     try (InputStream xsdStream = XsdValidator.class
                             .getClassLoader().getResourceAsStream(XSD_RESOURCE)) {
                         if (xsdStream == null) {
@@ -50,7 +53,10 @@ public class XsdValidator {
                 }
             }
         }
-        return cachedSchema.newValidator();
+        Validator validator = cachedSchema.newValidator();
+        validator.setProperty(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+        validator.setProperty(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
+        return validator;
     }
 
     /**

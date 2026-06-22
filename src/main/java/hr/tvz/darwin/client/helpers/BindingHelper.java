@@ -1,6 +1,7 @@
 package hr.tvz.darwin.client.helpers;
 
 import hr.tvz.darwin.shared.Island;
+import hr.tvz.darwin.shared.Track;
 import hr.tvz.darwin.shared.dto.PlayerStateDTO;
 import javafx.scene.control.ProgressBar;
 
@@ -38,6 +39,23 @@ public class BindingHelper {
         botanyProgress.setProgress(clampProgress(player.botany()));
         zoologyProgress.setProgress(clampProgress(player.zoology()));
         geologyProgress.setProgress(clampProgress(player.geology()));
+    }
+
+    /** Clears live values before a validated replay reconstructs local research. */
+    public void resetProgressBars() {
+        botanyProgress.setProgress(0);
+        zoologyProgress.setProgress(0);
+        geologyProgress.setProgress(0);
+    }
+
+    /** Updates exactly one replay track without disturbing the other two. */
+    public void updateTrack(Track track, int value) {
+        ProgressBar progressBar = switch (track) {
+            case BOTANY -> botanyProgress;
+            case ZOOLOGY -> zoologyProgress;
+            case GEOLOGY -> geologyProgress;
+        };
+        progressBar.setProgress(clampProgress(value));
     }
 
     public double[] getIslandPosition(Island island) {

@@ -8,6 +8,7 @@ import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
 
 import javax.xml.parsers.SAXParserFactory;
+import javax.xml.XMLConstants;
 import javax.xml.transform.stream.StreamSource;
 import java.io.File;
 import java.util.ArrayDeque;
@@ -27,6 +28,7 @@ import java.util.Queue;
  */
 public class SaxReplayParser extends DefaultHandler {
     private final Queue<MoveRequestDTO> moves = new ArrayDeque<>();
+    private int expectedTurn;
 
     /**
      * Validates the file against {@code replay.xsd}, then streams it through
@@ -38,9 +40,18 @@ public class SaxReplayParser extends DefaultHandler {
      */
     public Queue<MoveRequestDTO> parse(File xmlFile) throws Exception {
         moves.clear();
+        expectedTurn = 1;
         XsdValidator.validate(new StreamSource(xmlFile));
         SAXParserFactory factory = SAXParserFactory.newInstance();
-        factory.newSAXParser().parse(xmlFile, this);
+        // Replay files are data, never XML programs allowed to load other files.
+        factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+        factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
+        factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+        factory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
+        var parser = factory.newSAXParser();
+        parser.setProperty(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+        parser.setProperty(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
+        parser.parse(xmlFile, this);
 
         return moves;
     }
@@ -52,6 +63,12 @@ public class SaxReplayParser extends DefaultHandler {
         // queue doesn't pick up <DarwinReplay>, <MatchInfo>, or <Moves>.
         if (!"Move".equals(qName)) return;
 
+        int turn = Integer.parseInt(attributes.getValue("turn"));
+        if (turn != expectedTurn) {
+            throw new SAXException("Invalid move order: expected turn "
+                    + expectedTurn + " but found " + turn + ".");
+        }
+        expectedTurn++;
         int playerId = Integer.parseInt(attributes.getValue("playerId"));
         int workerId = Integer.parseInt(attributes.getValue("workerId"));
         Island targetIsland = Island.valueOf(attributes.getValue("targetIsland"));

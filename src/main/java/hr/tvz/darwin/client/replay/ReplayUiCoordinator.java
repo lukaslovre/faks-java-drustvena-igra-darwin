@@ -1,6 +1,7 @@
 package hr.tvz.darwin.client.replay;
 
 import hr.tvz.darwin.client.helpers.AnimationHelper;
+import hr.tvz.darwin.client.helpers.BindingHelper;
 import hr.tvz.darwin.shared.Island;
 import hr.tvz.darwin.shared.dto.MoveRequestDTO;
 import javafx.scene.paint.Color;
@@ -18,11 +19,13 @@ import java.util.function.Function;
 public class ReplayUiCoordinator {
     private final SaxReplayParser parser = new SaxReplayParser();
     private final ReplayEngine replayEngine;
+    private final BindingHelper bindingHelper;
     private final Map<Integer, Map<Integer, Circle>> workerCircles;
 
-    public ReplayUiCoordinator(AnimationHelper animationHelper,
+    public ReplayUiCoordinator(AnimationHelper animationHelper, BindingHelper bindingHelper,
                                Map<Integer, Map<Integer, Circle>> workerCircles,
                                Function<Island, double[]> islandPositions) {
+        this.bindingHelper = bindingHelper;
         this.workerCircles = workerCircles;
         this.replayEngine = new ReplayEngine(
                 animationHelper, workerCircles, islandPositions);
@@ -30,7 +33,7 @@ public class ReplayUiCoordinator {
 
     /** Opens a replay and reports status on the JavaFX Application Thread. */
     public void watchReplay(Window owner, Consumer<String> report,
-                            Runnable onStart, Runnable onComplete) {
+                            int localPlayerId, Runnable onStart, Runnable onComplete) {
         if (replayEngine.isRunning()) {
             return;
         }
@@ -49,9 +52,10 @@ public class ReplayUiCoordinator {
             }
 
             resetWorkers();
+            bindingHelper.resetProgressBars();
             onStart.run();
             report.accept("[REPLAY] Starting replay of " + moves.size() + " moves...\n");
-            replayEngine.startReplay(moves, () -> {
+            replayEngine.startReplay(moves, localPlayerId, bindingHelper::updateTrack, () -> {
                 report.accept("[REPLAY] Replay finished.\n");
                 onComplete.run();
             });
@@ -65,7 +69,10 @@ public class ReplayUiCoordinator {
         chooser.setTitle("Select Replay File");
         chooser.getExtensionFilters().add(
                 new FileChooser.ExtensionFilter("Replay XML", "*.xml"));
-        chooser.setInitialDirectory(new File("replays"));
+        File replayDirectory = new File("replays");
+        if (replayDirectory.isDirectory()) {
+            chooser.setInitialDirectory(replayDirectory);
+        }
         return chooser;
     }
 
